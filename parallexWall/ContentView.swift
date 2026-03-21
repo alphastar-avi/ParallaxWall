@@ -60,8 +60,8 @@ struct ContentView: View {
                 if let image = selectedImage {
                     Image(nsImage: image)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .clipped()
+                        .aspectRatio(contentMode: .fit)
+                        .padding()
                 } else {
                     VStack(spacing: 16) {
                         Image(systemName: "photo.on.rectangle.angled")
@@ -103,10 +103,6 @@ struct ContentView: View {
                     
                     // App Header
                     VStack(spacing: 8) {
-                        Image(systemName: "move.3d")
-                            .font(.system(size: 56, weight: .thin))
-                            .foregroundStyle(.blue)
-                        
                         Text("Parallax Desktop")
                             .font(.title2)
                             .fontWeight(.semibold)
