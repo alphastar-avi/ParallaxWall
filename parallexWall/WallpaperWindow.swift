@@ -26,6 +26,7 @@ class WallpaperWindow: NSWindow {
 class WallpaperController: ObservableObject {
     private var window: WallpaperWindow?
     @Published var isEnabled = false
+    @Published var sensitivity: Double = 0.002
     
     func toggle(image: NSImage?, sensor: SensorManager) {
         if isEnabled {
@@ -36,7 +37,7 @@ class WallpaperController: ObservableObject {
             guard let screen = NSScreen.main else { return }
             let win = WallpaperWindow(screen: screen)
             
-            let parallaxView = ParallaxView(image: image, sensor: sensor)
+            let parallaxView = ParallaxView(image: image, sensor: sensor, controller: self)
             win.contentView = NSHostingView(rootView: parallaxView)
             
             win.makeKeyAndOrderFront(nil)

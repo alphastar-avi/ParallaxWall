@@ -3,9 +3,9 @@ import SwiftUI
 struct ParallaxView: View {
     let image: NSImage?
     @ObservedObject var sensor: SensorManager
+    @ObservedObject var controller: WallpaperController
     
     // Configurable parameters
-    let sensitivity: Double = 0.002
     let smoothing: Double = 0.1
     let scaleEffect: CGFloat = 1.1 // Image scaled up to allow for movement
     
@@ -33,8 +33,8 @@ struct ParallaxView: View {
             // Sensor values on M1/M2 are raw, need to be normalized
             // Let's assume the center is 0.0 and max tilt is +/- 16000
             
-            let targetX = -rotation.x * sensitivity * 10 
-            let targetY = rotation.y * sensitivity * 10
+            let targetX = -rotation.x * controller.sensitivity * 10 
+            let targetY = rotation.y * controller.sensitivity * 10
             
             // Limit the offset to prevent seeing the edges
             let maxOffsetH = (scaleEffect - 1.0) * NSScreen.main!.frame.width / 2

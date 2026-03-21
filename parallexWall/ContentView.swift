@@ -64,12 +64,25 @@ struct ContentView: View {
                         Text(String(format: "%.0f", sensor.rotation.y))
                             .monospacedDigit()
                     }
+                    HStack {
+                        Text("Z:")
+                        Text(String(format: "%.0f", sensor.rotation.z))
+                            .monospacedDigit()
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
             }
             
             // Control
+            VStack(alignment: .leading) {
+                Text("Sensitivity")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Slider(value: $wallpaperController.sensitivity, in: 0.0001...0.01)
+            }
+            .padding(.top, 8)
+            
             Button(action: {
                 wallpaperController.toggle(image: selectedImage, sensor: sensor)
             }) {
