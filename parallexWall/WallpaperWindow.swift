@@ -41,8 +41,7 @@ class WallpaperController: ObservableObject {
             let parallaxView = ParallaxView(image: image, sensor: sensor, controller: self)
             win.contentView = NSHostingView(rootView: parallaxView)
             
-            win.makeKeyAndOrderFront(nil)
-            win.orderBack(nil) // Ensure it's behind everything
+            win.orderBack(nil) // Ensure it stays behind everything without stealing focus
             
             self.window = win
             isEnabled = true
