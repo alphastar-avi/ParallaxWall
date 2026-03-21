@@ -20,7 +20,6 @@ struct ParallaxView: View {
                         .aspectRatio(contentMode: .fill)
                         .scaleEffect(scaleEffect)
                         .offset(currentOffset)
-                        .animation(.interactiveSpring(), value: currentOffset)
                 } else {
                     Color.black
                 }
@@ -33,7 +32,7 @@ struct ParallaxView: View {
             // Sensor values on M1/M2 are raw, need to be normalized
             // Let's assume the center is 0.0 and max tilt is +/- 16000
             
-            let baseScale = 0.0001
+            let baseScale = 0.005
             let targetX = -rotation.x * baseScale * controller.sensitivity 
             let targetY = rotation.y * baseScale * controller.sensitivity
             
