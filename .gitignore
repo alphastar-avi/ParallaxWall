@@ -77,3 +77,8 @@ fastlane/test_output
 # https://github.com/johnno1962/injectionforxcode
 
 iOSInjectionProject/
+
+# macOS Disk Images
+*.dmg
+*.dmg.part
+ParallaxWallpaper.dmg
