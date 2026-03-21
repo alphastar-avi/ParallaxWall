@@ -3,6 +3,8 @@
 Parallax Wallpaper brings your macOS desktop to life using the built-in accelerometer tracking found in Apple Silicon Macs. As you move or tilt your laptop, your desktop background smoothly reacts and pans in real time, creating an immersive sense of 3D depth behind your icons and windows. Choose any custom image, dial in the perfect sensitivity, and effortlessly snap your center-point to match your current posture.
 More features yet to come!
 
+<img width="1470" height="956" alt="Screenshot 2026-03-22 at 3 34 30 AM" src="https://github.com/user-attachments/assets/0d55223e-ad67-46fb-89de-66b6f8963559" />
+
 ---
 
 ## Features
