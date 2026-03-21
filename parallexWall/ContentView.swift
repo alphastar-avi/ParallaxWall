@@ -8,12 +8,39 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// Telemetry Box sub-component
+struct TelemetryBox: View {
+    let title: String
+    let value: Double
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(alignment: .lastTextBaseline, spacing: 2) {
+                Text(String(format: "%.1f", value))
+                    .font(.system(.title2, design: .monospaced).bold())
+                Text("px")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .cornerRadius(8)
+    }
+}
+
 struct ContentView: View {
     @StateObject private var sensor = SensorManager()
     @StateObject private var wallpaperController = WallpaperController()
     @State private var selectedImage: NSImage?
     @State private var showingImagePicker = false
     
+    // Computed Telemetry
     private var parallaxOffsetX: Double {
         let currentX = sensor.rotation.x - sensor.baseRotation.x
         return -currentX * 0.005 * wallpaperController.sensitivity
@@ -25,92 +52,153 @@ struct ContentView: View {
     }
     
     var body: some View {
-        VStack(spacing: 24) {
-            Text("Parallax Wallpaper")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            // Image Preview/Selection
+        HStack(spacing: 0) {
+            // Left Side: Image Preview & Selection
             ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.secondary.opacity(0.1))
-                    .frame(height: 200)
+                Color(nsColor: .underPageBackgroundColor)
                 
                 if let image = selectedImage {
                     Image(nsImage: image)
                         .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .cornerRadius(8)
-                        .frame(maxHeight: 180)
+                        .aspectRatio(contentMode: .fill)
+                        .clipped()
                 } else {
-                    VStack {
+                    VStack(spacing: 16) {
                         Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 40))
+                            .font(.system(size: 80, weight: .light))
+                            .foregroundStyle(.tertiary)
+                        
+                        Text("No Background Selected")
+                            .font(.title2)
+                            .fontWeight(.medium)
                             .foregroundStyle(.secondary)
-                        Text("No Image Selected")
-                            .foregroundStyle(.secondary)
+                        
+                        Text("Click anywhere to choose a high-resolution image")
+                            .font(.subheadline)
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }
+            .frame(minWidth: 400, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
+            .contentShape(Rectangle())
             .onTapGesture {
                 showingImagePicker = true
             }
-            
-            Button(action: { showingImagePicker = true }) {
-                Label("Choose Background", systemImage: "folder")
+            .overlay(alignment: .bottomTrailing) {
+                Button(action: { showingImagePicker = true }) {
+                    Label("Change Image", systemImage: "photo")
+                        .padding(8)
+                        .background(Material.ultraThin)
+                        .cornerRadius(8)
+                }
+                .padding()
+                .buttonStyle(.plain) // Simple custom button look for overlay
             }
-            .buttonStyle(.bordered)
             
-            // Output Status
-            GroupBox(label: Label("Parallax Output", systemImage: "move.3d")) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Horizontal Shift:")
-                        Text(String(format: "%6.1f px", parallaxOffsetX))
-                            .monospacedDigit()
+            Divider()
+            
+            // Right Side: Controls & Telemetry
+            ScrollView {
+                VStack(spacing: 32) {
+                    
+                    // App Header
+                    VStack(spacing: 8) {
+                        Image(systemName: "move.3d")
+                            .font(.system(size: 56, weight: .thin))
+                            .foregroundStyle(.blue)
+                        
+                        Text("Parallax Desktop")
+                            .font(.title2)
+                            .fontWeight(.semibold)
                     }
-                    HStack {
-                        Text("Vertical Shift:")
-                        Text(String(format: "%6.1f px", parallaxOffsetY))
-                            .monospacedDigit()
+                    .padding(.top, 16)
+                    
+                    Divider()
+                    
+                    // Main Toggle
+                    VStack(spacing: 16) {
+                        Image(systemName: wallpaperController.isEnabled ? "checkmark.circle.fill" : "pause.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(wallpaperController.isEnabled ? .green : .orange)
+                            .symbolEffect(.bounce, value: wallpaperController.isEnabled)
+                            
+                        Text(wallpaperController.isEnabled ? "Actively running in background." : "Wallpaper is currently paused.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        
+                        Button(action: {
+                            wallpaperController.toggle(image: selectedImage, sensor: sensor)
+                        }) {
+                            Text(wallpaperController.isEnabled ? "Deactivate Wallpaper" : "Activate Wallpaper")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(wallpaperController.isEnabled ? .red : .blue)
+                        .disabled(selectedImage == nil)
+                        .controlSize(.large)
                     }
+                    
+                    Divider()
+                    
+                    // Parallax Settings
+                    VStack(alignment: .leading, spacing: 20) {
+                        Label("Settings", systemImage: "slider.horizontal.3")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Motion Sensitivity")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Slider(value: $wallpaperController.sensitivity, in: 0.01...1.0) {
+                                Text("Sensitivity")
+                            } minimumValueLabel: {
+                                Image(systemName: "tortoise")
+                                    .foregroundStyle(.secondary)
+                            } maximumValueLabel: {
+                                Image(systemName: "hare")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        
+                        Button(action: {
+                            withAnimation {
+                                sensor.calibrate()
+                            }
+                        }) {
+                            Label("Set Current Angle as Center", systemImage: "scope")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
+                    }
+                    
+                    Divider()
+                    
+                    // Live Telemetry Output
+                    VStack(alignment: .leading, spacing: 16) {
+                        Label("Live Telemetry", systemImage: "bolt.fill")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        
+                        HStack(spacing: 16) {
+                            TelemetryBox(title: "Horizontal", value: parallaxOffsetX)
+                            TelemetryBox(title: "Vertical", value: parallaxOffsetY)
+                        }
+                    }
+                    
+                    Spacer()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 4)
+                .padding(24)
             }
-            
-            // Control
-            VStack(alignment: .leading, spacing: 16) {
-                Button(action: {
-                    sensor.calibrate()
-                }) {
-                    Label("Set Current Angle as Center", systemImage: "scope")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                
-                VStack(alignment: .leading) {
-                    Text("Sensitivity")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Slider(value: $wallpaperController.sensitivity, in: 0.01...1.0)
-                }
-            }
-            .padding(.top, 8)
-            
-            Button(action: {
-                wallpaperController.toggle(image: selectedImage, sensor: sensor)
-            }) {
-                Text(wallpaperController.isEnabled ? "Deactivate Wallpaper" : "Set as Wallpaper")
-                    .frame(maxWidth: .infinity)
-            }
-            .padding(.top, 8)
-            .buttonStyle(.borderedProminent)
-            .tint(wallpaperController.isEnabled ? .red : .blue)
-            .disabled(selectedImage == nil)
+            .frame(width: 340)
+            .background(Color(nsColor: .controlBackgroundColor))
         }
-        .padding(32)
-        .frame(width: 400)
+        .frame(minWidth: 700, minHeight: 600)
         .fileImporter(
             isPresented: $showingImagePicker,
             allowedContentTypes: [.image],
@@ -129,7 +217,6 @@ struct ContentView: View {
         }
     }
 }
-
 
 #Preview {
     ContentView()
