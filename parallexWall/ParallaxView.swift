@@ -33,8 +33,9 @@ struct ParallaxView: View {
             // Sensor values on M1/M2 are raw, need to be normalized
             // Let's assume the center is 0.0 and max tilt is +/- 16000
             
-            let targetX = -rotation.x * controller.sensitivity * 10 
-            let targetY = rotation.y * controller.sensitivity * 10
+            let baseScale = 0.000001
+            let targetX = -rotation.x * baseScale * controller.sensitivity 
+            let targetY = rotation.y * baseScale * controller.sensitivity
             
             // Limit the offset to prevent seeing the edges
             let maxOffsetH = (scaleEffect - 1.0) * NSScreen.main!.frame.width / 2

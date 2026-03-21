@@ -26,7 +26,7 @@ class WallpaperWindow: NSWindow {
 class WallpaperController: ObservableObject {
     private var window: WallpaperWindow?
     @Published var isEnabled = false
-    @Published var sensitivity: Double = 0.0001
+    @Published var sensitivity: Double = 0.5
     
     func toggle(image: NSImage?, sensor: SensorManager) {
         if isEnabled {

@@ -79,7 +79,7 @@ struct ContentView: View {
                 Text("Sensitivity")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Slider(value: $wallpaperController.sensitivity, in: 0.00001...0.001)
+                Slider(value: $wallpaperController.sensitivity, in: 0.01...1.0)
             }
             .padding(.top, 8)
             
