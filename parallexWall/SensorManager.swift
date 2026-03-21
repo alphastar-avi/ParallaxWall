@@ -5,7 +5,13 @@ import Combine
 
 class SensorManager: ObservableObject {
     @Published var rotation = (x: Double(0), y: Double(0), z: Double(0))
+    @Published var baseRotation = (x: Double(0), y: Double(0), z: Double(0))
     
+    func calibrate() {
+        self.baseRotation = self.rotation
+    }
+    
+
     private var hidDevice: IOHIDDevice?
     private var reportBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 64)
     

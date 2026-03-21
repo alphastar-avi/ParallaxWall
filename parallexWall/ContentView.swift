@@ -75,11 +75,21 @@ struct ContentView: View {
             }
             
             // Control
-            VStack(alignment: .leading) {
-                Text("Sensitivity")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Slider(value: $wallpaperController.sensitivity, in: 0.01...1.0)
+            VStack(alignment: .leading, spacing: 16) {
+                Button(action: {
+                    sensor.calibrate()
+                }) {
+                    Label("Set Current Angle as Center", systemImage: "scope")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                
+                VStack(alignment: .leading) {
+                    Text("Sensitivity")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Slider(value: $wallpaperController.sensitivity, in: 0.01...1.0)
+                }
             }
             .padding(.top, 8)
             
