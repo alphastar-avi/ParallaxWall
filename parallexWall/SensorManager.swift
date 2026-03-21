@@ -7,6 +7,9 @@ class SensorManager: ObservableObject {
     @Published var rotation = (x: Double(0), y: Double(0), z: Double(0))
     @Published var baseRotation = (x: Double(0), y: Double(0), z: Double(0))
     
+    // Low-pass filter smoothing factor (lower = smoother but slightly delayed)
+    private let smoothing: Double = 0.05
+    
     func calibrate() {
         self.baseRotation = self.rotation
     }
@@ -139,10 +142,21 @@ class SensorManager: ObservableObject {
             let y = readInt32(report: report, offset: offset + 4)
             let z = readInt32(report: report, offset: offset + 8)
             
-            // Normalize these values. Max is usually around 16383 or something for these sensors.
-            // Let's just track raw for now and normalize in the view.
             DispatchQueue.main.async {
-                self.rotation = (x: Double(x), y: Double(y), z: Double(z))
+                let targetX = Double(x)
+                let targetY = Double(y)
+                let targetZ = Double(z)
+                
+                // If it's the very first reading, jump immediately
+                if self.rotation.x == 0 && self.rotation.y == 0 && self.rotation.z == 0 {
+                    self.rotation = (x: targetX, y: targetY, z: targetZ)
+                } else {
+                    // Apply exponential moving average to smooth raw hardware data
+                    let newX = self.rotation.x + (targetX - self.rotation.x) * self.smoothing
+                    let newY = self.rotation.y + (targetY - self.rotation.y) * self.smoothing
+                    let newZ = self.rotation.z + (targetZ - self.rotation.z) * self.smoothing
+                    self.rotation = (x: newX, y: newY, z: newZ)
+                }
             }
         }
     }

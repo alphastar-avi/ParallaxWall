@@ -17,6 +17,7 @@ class WallpaperWindow: NSWindow {
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         self.isOpaque = false
         self.hasShadow = false
+        self.isReleasedWhenClosed = false
         
         // Hide the window initially
         self.orderBack(nil)

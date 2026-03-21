@@ -6,7 +6,6 @@ struct ParallaxView: View {
     @ObservedObject var controller: WallpaperController
     
     // Configurable parameters
-    let smoothing: Double = 0.1
     let scaleEffect: CGFloat = 1.2 // Increased crop to allow for larger parallax movement
     
     @State private var currentOffset: CGSize = .zero
@@ -46,11 +45,7 @@ struct ParallaxView: View {
             let clampedX = max(min(targetX, maxOffsetH), -maxOffsetH)
             let clampedY = max(min(targetY, maxOffsetV), -maxOffsetV)
             
-            // Apply exponential moving average (low-pass filter) to eliminate jitter
-            let newX = currentOffset.width + (clampedX - currentOffset.width) * smoothing
-            let newY = currentOffset.height + (clampedY - currentOffset.height) * smoothing
-            
-            currentOffset = CGSize(width: newX, height: newY)
+            currentOffset = CGSize(width: clampedX, height: clampedY)
         }
     }
 }
