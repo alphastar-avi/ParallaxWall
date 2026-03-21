@@ -14,6 +14,16 @@ struct ContentView: View {
     @State private var selectedImage: NSImage?
     @State private var showingImagePicker = false
     
+    private var parallaxOffsetX: Double {
+        let currentX = sensor.rotation.x - sensor.baseRotation.x
+        return -currentX * 0.005 * wallpaperController.sensitivity
+    }
+    
+    private var parallaxOffsetY: Double {
+        let currentY = sensor.rotation.y - sensor.baseRotation.y
+        return currentY * 0.005 * wallpaperController.sensitivity
+    }
+    
     var body: some View {
         VStack(spacing: 24) {
             Text("Parallax Wallpaper")
@@ -51,22 +61,17 @@ struct ContentView: View {
             }
             .buttonStyle(.bordered)
             
-            // Sensor Status
-            GroupBox(label: Label("Sensor Status", systemImage: "bolt.fill")) {
+            // Output Status
+            GroupBox(label: Label("Parallax Output", systemImage: "move.3d")) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("X:")
-                        Text(String(format: "%.0f", sensor.rotation.x))
+                        Text("Horizontal Shift:")
+                        Text(String(format: "%6.1f px", parallaxOffsetX))
                             .monospacedDigit()
                     }
                     HStack {
-                        Text("Y:")
-                        Text(String(format: "%.0f", sensor.rotation.y))
-                            .monospacedDigit()
-                    }
-                    HStack {
-                        Text("Z:")
-                        Text(String(format: "%.0f", sensor.rotation.z))
+                        Text("Vertical Shift:")
+                        Text(String(format: "%6.1f px", parallaxOffsetY))
                             .monospacedDigit()
                     }
                 }
