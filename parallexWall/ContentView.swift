@@ -103,11 +103,11 @@ struct ContentView: View {
                     
                     // App Header
                     VStack(spacing: 8) {
-                        Text("Parallax Desktop")
+                        Text("Parallax Wallpaper")
                             .font(.title2)
                             .fontWeight(.semibold)
                     }
-                    .padding(.top, 16)
+                    .padding(.vertical, 8)
                     
                     Divider()
                     
