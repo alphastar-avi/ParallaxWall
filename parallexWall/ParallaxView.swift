@@ -7,7 +7,7 @@ struct ParallaxView: View {
     
     // Configurable parameters
     let smoothing: Double = 0.1
-    let scaleEffect: CGFloat = 1.1 // Image scaled up to allow for movement
+    let scaleEffect: CGFloat = 1.2 // Increased crop to allow for larger parallax movement
     
     @State private var currentOffset: CGSize = .zero
     
@@ -33,7 +33,7 @@ struct ParallaxView: View {
             // Sensor values on M1/M2 are raw, need to be normalized
             // Let's assume the center is 0.0 and max tilt is +/- 16000
             
-            let baseScale = 0.000001
+            let baseScale = 0.0001
             let targetX = -rotation.x * baseScale * controller.sensitivity 
             let targetY = rotation.y * baseScale * controller.sensitivity
             
