@@ -43,7 +43,11 @@ struct ParallaxView: View {
             let clampedX = max(min(targetX, maxOffsetH), -maxOffsetH)
             let clampedY = max(min(targetY, maxOffsetV), -maxOffsetV)
             
-            currentOffset = CGSize(width: clampedX, height: clampedY)
+            // Apply exponential moving average (low-pass filter) to eliminate jitter
+            let newX = currentOffset.width + (clampedX - currentOffset.width) * smoothing
+            let newY = currentOffset.height + (clampedY - currentOffset.height) * smoothing
+            
+            currentOffset = CGSize(width: newX, height: newY)
         }
     }
 }
