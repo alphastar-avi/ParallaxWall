@@ -37,12 +37,8 @@ The **Set Current Angle as Center** feature is a quick-action calibration tool, 
 
 ---
 
-## Battery Impact
+## How It Works
 
-Continuous 100Hz hardware motion tracking runs a background driver which consumes slight system resources, meaning your MacBook battery may drain slightly faster over a long session. Stopping or deactivating the wallpaper from the main dashboard returns battery usage completely to normal. It does not harm hardware whatsoever.
+This application directly integrates directly with the extremely low-level `AppleSPUHIDDevice` APIs using macOS `IOKit`. Because the internal Apple Silicon accelerometer is typically reserved for system-level functions (like screen auto-rotate logic or drop-protection), Parallax Wallpaper intentionally runs outside the strict macOS App Sandbox to capture this raw proprietary sensor data.
 
----
-
-## Source and Build
-
-This application disables the strict macOS App Sandbox by design in `project.pbxproj` to legitimately communicate with the extremely low-level proprietary `AppleSPUHIDDevice` APIs that handle internal Apple Silicon tilt events. 
+The raw X, Y, and Z hardware values are streamed at 100Hz into a low-pass exponential moving average filter. This mathematical backend drastically smooths out all micro-vibrations, processing completely stable horizontal and vertical pixel offsets straight to a borderless desktop-level `NSWindow`.
