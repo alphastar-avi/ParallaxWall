@@ -14,7 +14,6 @@ More features yet to come!
 * Custom, high-resolution background image support 
 * Adjustable motion sensitivity for perfectly tuned movement
 * Live visual telemetry tracking your X and Y axis pixel offsets
-* Extremely clean, native macOS split-view dashboard
 * Menu bar integration for quick access
 
 ---
