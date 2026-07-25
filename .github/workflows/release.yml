@@ -2,8 +2,6 @@ name: Build & Release Parallax Wallpaper DMG
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -18,8 +16,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Select Xcode Version
         run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
@@ -53,30 +49,11 @@ jobs:
           name: ParallaxWallpaper-DMG
           path: ParallaxWallpaper.dmg
 
-      - name: Generate Dynamic Release Notes
-        if: startsWith(github.ref, 'refs/tags/')
-        id: release_notes
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          echo "Previous tag: $PREV_TAG"
-          if [ -n "$PREV_TAG" ]; then
-            CHANGES=$(git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)")
-          else
-            CHANGES=$(git log -n 10 --pretty=format:"* %s (%h)")
-          fi
-          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: ParallaxWallpaper.dmg
           name: Release ${{ github.ref_name }}
-          body: |
-            ## What's Changed
-            ${{ steps.release_notes.outputs.CHANGELOG }}
-          generate_release_notes: true
           draft: false
           prerelease: false
