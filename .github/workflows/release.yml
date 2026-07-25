@@ -1,0 +1,62 @@
+name: Build & Release Parallax Wallpaper DMG
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Publish DMG
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode Version
+        run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+
+      - name: Build Release macOS App
+        run: |
+          xcodebuild -project parallexWall.xcodeproj \
+                     -scheme parallexWall \
+                     -configuration Release \
+                     -derivedDataPath build/DerivedData \
+                     CODE_SIGN_IDENTITY="" \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGNING_ALLOWED=NO \
+                     clean build
+
+      - name: Package DMG Artifact
+        run: |
+          APP_PATH=$(find build/DerivedData/Build/Products/Release -name "parallexWall.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: parallexWall.app not found!"
+            exit 1
+          fi
+          echo "Found compiled app at: $APP_PATH"
+          mkdir -p dmg_staging
+          cp -R "$APP_PATH" dmg_staging/
+          hdiutil create -volname "Parallax Wallpaper" -srcfolder dmg_staging -ov -format UDZO ParallaxWallpaper.dmg
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ParallaxWallpaper-DMG
+          path: ParallaxWallpaper.dmg
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ParallaxWallpaper.dmg
+          name: Release ${{ github.ref_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
