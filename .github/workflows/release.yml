@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Select Xcode Version
         run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
@@ -36,6 +38,38 @@ jobs:
           cp -R "$APP_PATH" dmg_staging/
           hdiutil create -volname "Parallax Wallpaper" -srcfolder dmg_staging -ov -format UDZO ParallaxWallpaper.dmg
 
+      - name: Generate Dynamic Release Notes Body
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          echo "Generating notes since previous tag: '$PREV_TAG'"
+          
+          cat << 'EOF' > release_notes.md
+          ## What's New in Parallax Wallpaper
+          
+          ### Key Features & Enhancements
+          * **AirPods Spatial Motion & Mac Accelerometer**: Dual motion tracking supporting both MacBook SPU accelerometer (`IOKit`) and AirPods Head Motion (`CMHeadphoneMotionManager`).
+          * **Apple-Style Control Center UI**: Glassmorphic bottom navigation pill and single-block motion source slider switch.
+          * **Multi-Layer 3D Depth Engine**: Stack $N$ PNG image layers with auto-depth distribution and independent opacity & depth multipliers.
+          * **Interactive Preview Canvas Controls**: Drag any layer directly on preview canvas to position, or drag the top-right blue handle dot to scale layer zoom.
+          * **Inverted Motion Smoothing**: Intuitive slider control ($0.0$ Raw/Direct to $1.0$ Ultra Smooth).
+          * **Draft Preview & Wallpaper Apply**: Live draft preview before applying changes directly to macOS desktop background.
+          
+          ### macOS Gatekeeper Security Note
+          If macOS displays a warning when launching the app, run the following command in Terminal:
+          ```bash
+          xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
+          ```
+          
+          ### Recent Commits & Changes
+          EOF
+          
+          if [ -n "$PREV_TAG" ]; then
+            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" >> release_notes.md
+          else
+            git log -n 10 --pretty=format:"* %s (%h)" >> release_notes.md
+          fi
+          echo "" >> release_notes.md
+
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -48,7 +82,7 @@ jobs:
         with:
           files: ParallaxWallpaper.dmg
           name: Release ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: release_notes.md
           draft: false
           prerelease: false
         env:
