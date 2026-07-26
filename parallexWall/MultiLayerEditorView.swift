@@ -1,6 +1,31 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+struct TelemetryBox: View {
+    let title: String
+    let value: Double
+    let unit: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+            HStack(alignment: .lastTextBaseline, spacing: 2) {
+                Text(String(format: "%.1f", value))
+                    .font(.system(.subheadline, design: .monospaced).bold())
+                Text(unit)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .cornerRadius(6)
+    }
+}
+
 struct LayerDropDelegate: DropDelegate {
     let item: ParallaxLayer
     @Binding var layers: [ParallaxLayer]
@@ -131,10 +156,16 @@ struct LayerRowView: View {
 struct MultiLayerEditorView: View {
     @ObservedObject var sensor: SensorManager
     @ObservedObject var wallpaperController: WallpaperController
+    @ObservedObject var collectionManager: CollectionManager = CollectionManager.shared
     
     @State private var showingImagePicker = false
     @State private var selectedLayerId: UUID? = nil
     @State private var draggedItem: ParallaxLayer? = nil
+    
+    // Requirement 2: Save Collection Pop-up Modal State
+    @State private var showingSaveModal = false
+    @State private var collectionNameInput = ""
+    @State private var showSavedToast = false
     
     var selectedLayer: ParallaxLayer? {
         wallpaperController.draftLayers.first(where: { $0.id == selectedLayerId })
@@ -228,6 +259,27 @@ struct MultiLayerEditorView: View {
                                 .padding(40)
                             }
                         }
+                        // Requirement 2: Apple-style "Save Collection" button at bottom-left of preview window
+                        .overlay(alignment: .bottomLeading) {
+                            Button {
+                                collectionNameInput = "My Scene \(collectionManager.collections.count + 1)"
+                                showingSaveModal = true
+                            } label: {
+                                Label("Save Collection", systemImage: "bookmark.fill")
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(.ultraThinMaterial)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .padding(40)
+                        }
                     }
                 }
             }
@@ -243,7 +295,8 @@ struct MultiLayerEditorView: View {
                         // Header & Status
                         VStack(spacing: 12) {
                             HStack {
-                                Image(systemName: "square.3.layers.3d.down.right.fill")
+                                // Requirement 1: Icon updated to square.3.layers.3d.down.right
+                                Image(systemName: "square.3.layers.3d.down.right")
                                     .font(.title3)
                                     .foregroundStyle(.blue)
                                 Text("Parallax Wallpaper")
@@ -277,7 +330,7 @@ struct MultiLayerEditorView: View {
                             .controlSize(.large)
                         }
                         
-                        // MARK: - Requirement 3: Minimalist Telemetry Bar
+                        // Minimalist Telemetry Bar
                         HStack(spacing: 12) {
                             HStack(spacing: 4) {
                                 Text("Horizontal:")
@@ -390,7 +443,7 @@ struct MultiLayerEditorView: View {
                         // MARK: - Layers Section Header with "+ Add Layer" Button
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
-                                Label("Layers (\(wallpaperController.draftLayers.count))", systemImage: "layers")
+                                Label("Layers (\(wallpaperController.draftLayers.count))", systemImage: "square.3.layers.3d")
                                     .font(.headline)
                                     .foregroundStyle(.secondary)
                                 
@@ -655,6 +708,52 @@ struct MultiLayerEditorView: View {
             case .failure(let error):
                 print("Error picking layer images: \(error)")
             }
+        }
+        // Requirement 2: Save Collection Pop-up Modal Sheet
+        .sheet(isPresented: $showingSaveModal) {
+            VStack(spacing: 20) {
+                HStack {
+                    Image(systemName: "bookmark.fill")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+                    Text("Save Scene Collection")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Spacer()
+                }
+                
+                Text("Enter a name for this parallax scene collection to save it to your local gallery and enable .pxwall file exports.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                TextField("Collection Name", text: $collectionNameInput)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.large)
+                
+                HStack {
+                    Button("Cancel") {
+                        showingSaveModal = false
+                    }
+                    .keyboardShortcut(.cancelAction)
+                    
+                    Spacer()
+                    
+                    Button("Save Collection") {
+                        _ = collectionManager.saveCollection(
+                            title: collectionNameInput,
+                            layers: wallpaperController.draftLayers,
+                            sensitivity: wallpaperController.draftSensitivity
+                        )
+                        showingSaveModal = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(collectionNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .padding(24)
+            .frame(width: 380)
         }
     }
 }

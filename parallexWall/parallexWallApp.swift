@@ -3,18 +3,16 @@ import SwiftUI
 @main
 struct parallexWallApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var sensor = SensorManager()
     @StateObject private var wallpaperController = WallpaperController()
     
     var body: some Scene {
         WindowGroup {
-            MultiLayerEditorView(sensor: sensor, wallpaperController: wallpaperController)
-                .frame(minWidth: 840, minHeight: 640)
+            ContentView()
         }
         
         MenuBarExtra("Parallax", systemImage: wallpaperController.isEnabled ? "power.circle.fill" : "play.circle") {
             Button(wallpaperController.isEnabled ? "Pause Wallpaper" : "Resume Wallpaper") {
-                wallpaperController.toggle(sensor: sensor)
+                wallpaperController.toggle(sensor: SensorManager())
             }
             
             Divider()
