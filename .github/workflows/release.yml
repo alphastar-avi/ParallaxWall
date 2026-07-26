@@ -21,15 +21,8 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
 
       - name: Build Release macOS App
-        run: 
-          xcodebuild -project parallexWall.xcodeproj \
-                     -scheme parallexWall \
-                     -configuration Release \
-                     -derivedDataPath build/DerivedData \
-                     CODE_SIGN_IDENTITY="" \
-                     CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGNING_ALLOWED=NO \
-                     clean build
+        run: |
+          xcodebuild -project parallexWall.xcodeproj -scheme parallexWall -configuration Release -derivedDataPath build/DerivedData CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO clean build
 
       - name: Package DMG Artifact
         run: |
@@ -55,5 +48,8 @@ jobs:
         with:
           files: ParallaxWallpaper.dmg
           name: Release ${{ github.ref_name }}
+          generate_release_notes: true
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
