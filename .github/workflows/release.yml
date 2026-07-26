@@ -43,28 +43,15 @@ jobs:
           PREV_TAG=$(git tag --sort=-version:refname | grep -v "${{ github.ref_name }}" | head -n 1 || echo "")
           echo "Previous release tag detected: '$PREV_TAG'"
           
-          cat << EOF > release_notes.md
-## Release ${{ github.ref_name }}
-
-### What's Changed
-EOF
-
+          printf "## Release %%s\n\n### What's Changed\n" "${{ github.ref_name }}" > release_notes.md
+          
           if [ -n "$PREV_TAG" ]; then
             git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" >> release_notes.md
           else
             git log -n 20 --pretty=format:"* %s (%h)" >> release_notes.md
           fi
           
-          cat << 'EOF' >> release_notes.md
-
----
-
-### macOS Security & Gatekeeper Note
-If macOS displays a security warning when launching the app (*"App is damaged and can't be opened"*), run this command in **Terminal**:
-```bash
-xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
-```
-EOF
+          printf "\n\n---\n\n### macOS Security & Gatekeeper Note\nIf macOS displays a security warning when launching the app (*\"App is damaged and can't be opened\"*), run this command in **Terminal**:\n\`\`\`bash\nxattr -dr com.apple.quarantine \"/Applications/parallexWall.app\"\n\`\`\`\n" >> release_notes.md
           
           echo "--- GENERATED DYNAMIC RELEASE NOTES ---"
           cat release_notes.md
