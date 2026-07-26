@@ -40,35 +40,38 @@ jobs:
 
       - name: Generate Dynamic Release Notes Body
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          echo "Generating notes since previous tag: '$PREV_TAG'"
+          PREV_TAG=$(git tag --sort=-creatordate | grep -v "${{ github.ref_name }}" | head -n 1 || echo "")
+          echo "Previous release tag detected: '$PREV_TAG'"
           
           cat << 'EOF' > release_notes.md
-          ## What's New in Parallax Wallpaper
-          
-          ### Key Features & Enhancements
-          * **AirPods Spatial Motion & Mac Accelerometer**: Dual motion tracking supporting both MacBook SPU accelerometer (`IOKit`) and AirPods Head Motion (`CMHeadphoneMotionManager`).
-          * **Apple-Style Control Center UI**: Glassmorphic bottom navigation pill and single-block motion source slider switch.
-          * **Multi-Layer 3D Depth Engine**: Stack $N$ PNG image layers with auto-depth distribution and independent opacity & depth multipliers.
-          * **Interactive Preview Canvas Controls**: Drag any layer directly on preview canvas to position, or drag the top-right blue handle dot to scale layer zoom.
-          * **Inverted Motion Smoothing**: Intuitive slider control ($0.0$ Raw/Direct to $1.0$ Ultra Smooth).
-          * **Draft Preview & Wallpaper Apply**: Live draft preview before applying changes directly to macOS desktop background.
-          
-          ### macOS Gatekeeper Security Note
-          If macOS displays a warning when launching the app, run the following command in Terminal:
-          ```bash
-          xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
-          ```
-          
-          ### Recent Commits & Changes
-          EOF
+## What's New in Parallax Wallpaper
+
+### Key Features & Enhancements
+* **AirPods Spatial Motion & Mac Accelerometer**: Dual motion tracking supporting both MacBook SPU accelerometer (`IOKit`) and AirPods Head Motion (`CMHeadphoneMotionManager`).
+* **Apple-Style Control Center UI**: Glassmorphic bottom navigation pill and single-block motion source slider switch (**Mac** vs **AirPods**).
+* **Multi-Layer 3D Depth Engine**: Stack $N$ PNG image layers with auto-depth distribution and independent opacity & depth multipliers.
+* **Interactive Canvas Drag & Scaling**: Drag any layer directly on preview canvas to position, or drag the top-right blue handle dot to scale layer zoom ($0.15\times$ to $2.5\times$).
+* **Inverted Motion Smoothing**: Intuitive slider control ($0.0$ Raw/Direct to $1.0$ Ultra Smooth).
+* **Draft Preview & Wallpaper Apply**: Live draft preview before applying changes directly to macOS desktop background.
+
+### macOS Security & Gatekeeper Note
+If macOS displays a warning when launching the app, run the following command in Terminal:
+```bash
+xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
+```
+
+### Recent Commits
+EOF
           
           if [ -n "$PREV_TAG" ]; then
             git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" >> release_notes.md
           else
-            git log -n 10 --pretty=format:"* %s (%h)" >> release_notes.md
+            git log -n 15 --pretty=format:"* %s (%h)" >> release_notes.md
           fi
           echo "" >> release_notes.md
+          
+          echo "--- GENERATED RELEASE NOTES ---"
+          cat release_notes.md
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
