@@ -6,7 +6,7 @@ Parallax Wallpaper brings your macOS desktop to life using built-in Apple Silico
 
 <img width="1246" height="903" alt="ParallaxWallGallary" src="https://github.com/user-attachments/assets/4b901ddd-152e-439e-a49e-64cf45409e80" />
 
-https://github.com/user-attachments/assets/e08df276-0a23-4a3b-9b6a-19d011d39fdb
+https://github.com/user-attachments/assets/ec7228fd-3008-4200-bd6c-154a25245725
 
 ---
 
