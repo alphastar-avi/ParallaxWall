@@ -2,7 +2,11 @@
 
 Parallax Wallpaper brings your macOS desktop to life using built-in Apple Silicon accelerometer tracking and AirPods spatial head motion detection. As you move your laptop or tilt your head, your desktop background smoothly reacts and pans in real time, creating an immersive sense of 3D depth behind your icons and windows. Compose rich, multi-layered 3D depth scenes with custom per-layer motion tuning, save custom scene collections locally, and export/import them via portable `.pxwall` packages.
 
-<img width="1470" height="956" alt="Screenshot 2026-03-22 at 3 34 30 AM" src="https://github.com/user-attachments/assets/0d55223e-ad67-46fb-89de-66b6f8963559" />
+<img width="1246" height="903" alt="ParallaxWallHome" src="https://github.com/user-attachments/assets/7221403c-1ca9-4475-b46f-79b0749dc851" />
+
+<img width="1246" height="903" alt="ParallaxWallGallary" src="https://github.com/user-attachments/assets/4b901ddd-152e-439e-a49e-64cf45409e80" />
+
+https://github.com/user-attachments/assets/e08df276-0a23-4a3b-9b6a-19d011d39fdb
 
 ---
 
