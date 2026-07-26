@@ -1,6 +1,6 @@
 # Parallax Wallpaper
 
-Parallax Wallpaper brings your macOS desktop to life using built-in Apple Silicon accelerometer tracking and AirPods spatial head motion detection. As you move your laptop or tilt your head, your desktop background smoothly reacts and pans in real time, creating an immersive sense of 3D depth behind your icons and windows. Choose a single high-resolution wallpaper or compose rich, multi-layered 3D depth scenes with custom per-layer motion tuning.
+Parallax Wallpaper brings your macOS desktop to life using built-in Apple Silicon accelerometer tracking and AirPods spatial head motion detection. As you move your laptop or tilt your head, your desktop background smoothly reacts and pans in real time, creating an immersive sense of 3D depth behind your icons and windows. Upload a single wallpaper or compose multi-layered 3D depth scenes with custom per-layer motion tuning.
 
 <img width="1470" height="956" alt="Screenshot 2026-03-22 at 3 34 30 AM" src="https://github.com/user-attachments/assets/0d55223e-ad67-46fb-89de-66b6f8963559" />
 
@@ -9,18 +9,19 @@ Parallax Wallpaper brings your macOS desktop to life using built-in Apple Silico
 ## Features
 
 * **Dual Motion Tracking Sources**: Switch seamlessly between **Mac Accelerometer** (`IOKit` `AppleSPUHIDDevice`) and **AirPods Spatial Head Tracking** (`CoreMotion` `CMHeadphoneMotionManager`).
-* **Apple-Inspired Floating Navigation Bar**: Glassmorphic bottom pill navigation bar for switching between single and multi-layer parallax modes.
-* **Apple-Style Block Motion Selector**: Custom Control Center style single-block slider switch to toggle between Mac and AirPods motion tracking.
-* **Multi-Layer 3D Parallax Engine**: Upload $N$ image layers (PNGs/JPEGs) where the first uploaded image forms the background and the last forms the foreground.
-* **Interactive Canvas Drag & Resize**:
-  * Drag any layer directly inside the preview canvas to position it on screen.
-  * Drag the **top-right circular handle dot** on the selection bounding box to visually resize layer scale ($0.15\times$ to $2.5\times$).
+* **Unified Parallax Editor**: Single streamlined editor. Upload 1 image for a protected background wallpaper or upload $N$ image layers for rich 3D depth parallax.
+* **Background Layer Edge Protection**: Strict edge clamping for the background layer (Layer 0) to ensure tilting never exposes black canvas borders.
+* **Interactive Canvas Mouse Controls**:
+  * Drag any selected layer's body directly inside the preview canvas to position it on screen.
+  * Drag the **top-right blue circular handle dot** on the selection bounding box to visually resize layer scale ($0.15\times$ to $3.0\times$).
+* **Menu Bar Quick Actions**:
+  * Toggle **Pause Wallpaper** / **Resume Wallpaper** instantly from the macOS status bar icon menu.
+* **Live Telemetry HUD**: Real-time analytical readouts tracking X/Y tilt angles and pixel offsets.
 * **Draggable Layer Reordering**: Drag-and-drop or reorder layers in the sidebar stack.
-* **Inverted Motion Smoothing Control**: Intuitive motion damping slider ($0.0$ Raw/Direct to $1.0$ Ultra Smooth).
+* **Inverted Motion Smoothing Control**: Intuitive slider control ($0.0$ Raw/Direct to $1.0$ Ultra Smooth).
 * **Live Draft Preview vs. Applied Wallpaper**: Tweak layer settings with instant live preview in the window, then click **"Apply Changes to Wallpaper"** to project onto your desktop.
 * **Aspect-Fitted Monitor Preview**: Custom $16:10$ Mac screen monitor preview frame.
 * **Center Calibration**: One-click calibration to snap the 3D focal point to your current physical desk angle or head position.
-* **Menu Bar Integration**: Quick access icon in the macOS menu bar.
 
 ---
 
@@ -39,20 +40,6 @@ xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
 ```
 
 Once executed, launch `parallexWall.app` normally from Launchpad or Finder.
-
----
-
-## Parallax Modes & Settings
-
-### 1. Single Image Mode
-The classic 1-image parallax experience. Upload any high-resolution image, dial in motion sensitivity and motion smoothing, and project it cleanly onto your desktop background.
-
-### 2. Multi-Layer Mode
-Compose custom 3D depth scenes using multiple stacked image layers (ideal for transparent PNGs):
-* **Layer Order**: Layer 1 (first upload) maps to the **Background** (lowest motion depth), and Layer $N$ (last upload) maps to the **Foreground** (highest motion depth).
-* **Depth Multipliers**: Tune individual layer reaction speed to physical tilt. Foreground elements shift more dynamically while background elements move subtly.
-* **Layer Inspector**: Adjust zoom crop scale ($0.15\times$ to $2.5\times$), opacity ($0\%$ to $100\%$), visibility toggles, or re-order layers on the fly.
-* **Canvas Interactivity**: Select a layer and drag it on the preview canvas to position it, or drag the top-right blue handle dot to resize its scale.
 
 ---
 

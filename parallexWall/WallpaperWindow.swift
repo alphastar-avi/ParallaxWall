@@ -28,25 +28,18 @@ class WallpaperWindow: NSWindow {
 class WallpaperController: ObservableObject {
     @Published var window: WallpaperWindow?
     @Published var isEnabled = false
-    @Published var selectedTab: ParallaxTab = .single
     
     // MARK: - Draft State (used for real-time live preview in app UI)
-    @Published var draftSingleImage: NSImage? = nil
     @Published var draftLayers: [ParallaxLayer] = []
     @Published var draftSensitivity: Double = 0.5
     
     // MARK: - Applied State (used for actual desktop wallpaper window)
-    @Published var appliedSingleImage: NSImage? = nil
     @Published var appliedLayers: [ParallaxLayer] = []
     @Published var appliedSensitivity: Double = 0.5
     
     // MARK: - Unsaved Changes Tracking
     var hasUnsavedChanges: Bool {
-        if selectedTab == .single {
-            return draftSingleImage !== appliedSingleImage || draftSensitivity != appliedSensitivity
-        } else {
-            return draftLayers != appliedLayers || draftSensitivity != appliedSensitivity
-        }
+        return draftLayers != appliedLayers || draftSensitivity != appliedSensitivity
     }
     
     // MARK: - Layer Stack Draft Operations
@@ -106,7 +99,6 @@ class WallpaperController: ObservableObject {
     // MARK: - Save & Apply Changes to Wallpaper
     
     func applyChangesToWallpaper(sensor: SensorManager) {
-        appliedSingleImage = draftSingleImage
         appliedLayers = draftLayers
         appliedSensitivity = draftSensitivity
         
@@ -124,7 +116,6 @@ class WallpaperController: ObservableObject {
             isEnabled = false
         } else {
             // Apply current draft state when enabling
-            appliedSingleImage = draftSingleImage
             appliedLayers = draftLayers
             appliedSensitivity = draftSensitivity
             
@@ -140,12 +131,7 @@ class WallpaperController: ObservableObject {
     }
     
     private func attachHostingView(to win: WallpaperWindow, sensor: SensorManager) {
-        if selectedTab == .single {
-            let view = ParallaxView(image: appliedSingleImage, sensor: sensor, controller: self)
-            win.contentView = NSHostingView(rootView: view)
-        } else {
-            let view = MultiLayerParallaxView(layers: appliedLayers, sensor: sensor, sensitivity: appliedSensitivity)
-            win.contentView = NSHostingView(rootView: view)
-        }
+        let view = MultiLayerParallaxView(layers: appliedLayers, sensor: sensor, sensitivity: appliedSensitivity)
+        win.contentView = NSHostingView(rootView: view)
     }
 }

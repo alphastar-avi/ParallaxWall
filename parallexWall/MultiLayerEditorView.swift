@@ -136,15 +136,22 @@ struct MultiLayerEditorView: View {
     @State private var selectedLayerId: UUID? = nil
     @State private var draggedItem: ParallaxLayer? = nil
     
-    // Drag gestures for positioning and resizing
-    @State private var isDragModeDetermined = false
-    @State private var isResizingMode = false
-    @State private var dragInitialScale: CGFloat = 1.0
-    @State private var dragInitialOffsetX: Double = 0
-    @State private var dragInitialOffsetY: Double = 0
-    
     var selectedLayer: ParallaxLayer? {
         wallpaperController.draftLayers.first(where: { $0.id == selectedLayerId })
+    }
+    
+    // Live Telemetry Calculations
+    var currentTiltX: Double {
+        sensor.rotation.x - sensor.baseRotation.x
+    }
+    var currentTiltY: Double {
+        sensor.rotation.y - sensor.baseRotation.y
+    }
+    var offsetX: Double {
+        -currentTiltX * 0.005 * wallpaperController.draftSensitivity
+    }
+    var offsetY: Double {
+        currentTiltY * 0.005 * wallpaperController.draftSensitivity
     }
     
     var body: some View {
@@ -173,7 +180,7 @@ struct MultiLayerEditorView: View {
                         Button {
                             showingImagePicker = true
                         } label: {
-                            Label("Upload PNG Layers", systemImage: "plus.circle.fill")
+                            Label("Upload Wallpaper / PNG Layers", systemImage: "plus.circle.fill")
                                 .font(.headline)
                         }
                         .buttonStyle(.borderedProminent)
@@ -181,64 +188,36 @@ struct MultiLayerEditorView: View {
                     }
                 } else {
                     VStack {
-                        GeometryReader { frameGeo in
-                            DesktopMonitorFrame {
-                                MultiLayerParallaxView(
-                                    layers: wallpaperController.draftLayers,
-                                    sensor: sensor,
-                                    sensitivity: wallpaperController.draftSensitivity,
-                                    selectedLayerId: selectedLayerId
-                                )
-                            }
-                            // Requirement 3: Drag canvas body to position, drag top-right handle dot to resize layer scale
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        guard let layer = selectedLayer else { return }
-                                        
-                                        if !isDragModeDetermined {
-                                            // Check if drag starts near top-right corner region of the monitor frame
-                                            let startX = value.startLocation.x
-                                            let startY = value.startLocation.y
-                                            let frameWidth = frameGeo.size.width
-                                            
-                                            if startX > frameWidth - 100 && startY < 100 {
-                                                isResizingMode = true
-                                                dragInitialScale = layer.scaleEffect
-                                            } else {
-                                                isResizingMode = false
-                                                dragInitialOffsetX = layer.offsetX
-                                                dragInitialOffsetY = layer.offsetY
-                                            }
-                                            isDragModeDetermined = true
-                                        }
-                                        
-                                        var updated = layer
-                                        if isResizingMode {
-                                            let scaleDelta = (value.translation.width - value.translation.height) / 200.0
-                                            let newScale = max(0.15, min(2.5, dragInitialScale + scaleDelta))
-                                            updated.scaleEffect = newScale
-                                        } else {
-                                            updated.offsetX = dragInitialOffsetX + value.translation.width
-                                            updated.offsetY = dragInitialOffsetY + value.translation.height
-                                        }
+                        DesktopMonitorFrame {
+                            MultiLayerParallaxView(
+                                layers: wallpaperController.draftLayers,
+                                sensor: sensor,
+                                sensitivity: wallpaperController.draftSensitivity,
+                                selectedLayerId: selectedLayerId,
+                                onLayerPositionChanged: { layerId, newX, newY in
+                                    if let idx = wallpaperController.draftLayers.firstIndex(where: { $0.id == layerId }) {
+                                        var updated = wallpaperController.draftLayers[idx]
+                                        updated.offsetX = newX
+                                        updated.offsetY = newY
                                         wallpaperController.updateLayer(updated)
                                     }
-                                    .onEnded { _ in
-                                        isDragModeDetermined = false
-                                        isResizingMode = false
-                                        dragInitialOffsetX = 0
-                                        dragInitialOffsetY = 0
+                                },
+                                onLayerScaleChanged: { layerId, newScale in
+                                    if let idx = wallpaperController.draftLayers.firstIndex(where: { $0.id == layerId }) {
+                                        var updated = wallpaperController.draftLayers[idx]
+                                        updated.scaleEffect = newScale
+                                        wallpaperController.updateLayer(updated)
                                     }
+                                }
                             )
                         }
                         .padding(32)
                         .overlay(alignment: .topLeading) {
                             if let layer = selectedLayer {
                                 HStack(spacing: 6) {
-                                    Image(systemName: isResizingMode ? "arrow.up.left.and.arrow.down.right" : "hand.draw")
+                                    Image(systemName: "hand.draw")
                                         .font(.caption2)
-                                    Text(isResizingMode ? "Resizing '\(layer.name)' scale (\(String(format: "%.2fx", layer.scaleEffect)))" : "Positioning '\(layer.name)' | Drag top-right dot to resize scale")
+                                    Text("Selected '\(layer.name)' | Drag body to position, drag top-right blue dot up/down to scale")
                                         .font(.caption2)
                                         .fontWeight(.medium)
                                 }
@@ -259,7 +238,7 @@ struct MultiLayerEditorView: View {
             // MARK: - Right Side: Control Sidebar
             VStack(spacing: 0) {
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 18) {
                         
                         // Header & Status
                         VStack(spacing: 12) {
@@ -267,27 +246,27 @@ struct MultiLayerEditorView: View {
                                 Image(systemName: "square.3.layers.3d.down.right.fill")
                                     .font(.title3)
                                     .foregroundStyle(.blue)
-                                Text("Multi-Layer Parallax")
+                                Text("Parallax Wallpaper")
                                     .font(.title3)
                                     .fontWeight(.bold)
                                 Spacer()
                             }
                             
-                            Text(wallpaperController.isEnabled && wallpaperController.selectedTab == .multiLayer ?
+                            Text(wallpaperController.isEnabled ?
                                  "Active on Desktop" : "Wallpaper Paused")
                                 .font(.caption)
                                 .fontWeight(.medium)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
-                                .background(wallpaperController.isEnabled && wallpaperController.selectedTab == .multiLayer ? Color.green.opacity(0.2) : Color.secondary.opacity(0.2))
-                                .foregroundStyle(wallpaperController.isEnabled && wallpaperController.selectedTab == .multiLayer ? .green : .secondary)
+                                .background(wallpaperController.isEnabled ? Color.green.opacity(0.2) : Color.secondary.opacity(0.2))
+                                .foregroundStyle(wallpaperController.isEnabled ? .green : .secondary)
                                 .clipShape(Capsule())
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             
                             Button(action: {
                                 wallpaperController.toggle(sensor: sensor)
                             }) {
-                                Label(wallpaperController.isEnabled ? "Deactivate Wallpaper" : "Activate Desktop Wallpaper",
+                                Label(wallpaperController.isEnabled ? "Pause Desktop Wallpaper" : "Activate Desktop Wallpaper",
                                       systemImage: wallpaperController.isEnabled ? "power" : "play.fill")
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 6)
@@ -297,6 +276,34 @@ struct MultiLayerEditorView: View {
                             .disabled(wallpaperController.draftLayers.isEmpty)
                             .controlSize(.large)
                         }
+                        
+                        // MARK: - Requirement 3: Minimalist Telemetry Bar
+                        HStack(spacing: 12) {
+                            HStack(spacing: 4) {
+                                Text("Horizontal:")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text(String(format: "%+.1f px", offsetX))
+                                    .font(.system(.caption, design: .monospaced).bold())
+                            }
+                            
+                            Text("|")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            
+                            HStack(spacing: 4) {
+                                Text("Vertical:")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text(String(format: "%+.1f px", offsetY))
+                                    .font(.system(.caption, design: .monospaced).bold())
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .cornerRadius(6)
                         
                         Divider()
                         
@@ -346,7 +353,6 @@ struct MultiLayerEditorView: View {
                                 }
                             }
                             
-                            // Requirement 1: Motion Damping / Smoothness Slider (Inverted)
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
                                     Text("Motion Smoothing")
@@ -515,7 +521,7 @@ struct MultiLayerEditorView: View {
                                     )
                                 }
                                 
-                                // Zoom Crop Scale slider from 0.15x (zoomed out small) to 2.5x
+                                // Zoom Crop Scale slider from 0.15x to 3.0x
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack {
                                         Text("Zoom / Layer Scale")
@@ -535,7 +541,7 @@ struct MultiLayerEditorView: View {
                                                 wallpaperController.updateLayer(updated)
                                             }
                                         ),
-                                        in: 0.15...2.5
+                                        in: 0.15...3.0
                                     )
                                 }
                                 

@@ -1,32 +1,36 @@
-//
-//  parallexWallApp.swift
-//  parallexWall
-//
-//  Created by Avinash S on 3/22/26.
-//
-
 import SwiftUI
 
 @main
 struct parallexWallApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var sensor = SensorManager()
+    @StateObject private var wallpaperController = WallpaperController()
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MultiLayerEditorView(sensor: sensor, wallpaperController: wallpaperController)
+                .frame(minWidth: 840, minHeight: 640)
         }
         
-        MenuBarExtra("Parallax", systemImage: "macwindow.on.rectangle") {
-            Button("Show Settings") {
+        MenuBarExtra("Parallax", systemImage: wallpaperController.isEnabled ? "power.circle.fill" : "play.circle") {
+            Button(wallpaperController.isEnabled ? "Pause Wallpaper" : "Resume Wallpaper") {
+                wallpaperController.toggle(sensor: sensor)
+            }
+            
+            Divider()
+            
+            Button("Show Control Panel") {
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 for window in NSApplication.shared.windows {
-                    if window.title == "parallexWall" {
+                    if window.title == "parallexWall" || window.title.isEmpty {
                         window.makeKeyAndOrderFront(nil)
                     }
                 }
             }
+            
             Divider()
-            Button("Quit") {
+            
+            Button("Quit Parallax Wallpaper") {
                 NSApplication.shared.terminate(nil)
             }
         }
@@ -35,7 +39,6 @@ struct parallexWallApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Prevent app from quitting when window is closed
         NSApplication.shared.setActivationPolicy(.regular)
     }
     
@@ -43,4 +46,3 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 }
-
