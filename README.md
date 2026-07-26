@@ -1,6 +1,6 @@
 # Parallax Wallpaper
 
-Parallax Wallpaper brings your macOS desktop to life using the built-in accelerometer tracking found in Apple Silicon Macs. As you move or tilt your laptop, your desktop background smoothly reacts and pans in real time, creating an immersive sense of 3D depth behind your icons and windows. Choose a single high-resolution wallpaper or compose rich, multi-layered 3D depth scenes with custom per-layer motion tuning.
+Parallax Wallpaper brings your macOS desktop to life using built-in Apple Silicon accelerometer tracking and AirPods spatial head motion detection. As you move your laptop or tilt your head, your desktop background smoothly reacts and pans in real time, creating an immersive sense of 3D depth behind your icons and windows. Choose a single high-resolution wallpaper or compose rich, multi-layered 3D depth scenes with custom per-layer motion tuning.
 
 <img width="1470" height="956" alt="Screenshot 2026-03-22 at 3 34 30 AM" src="https://github.com/user-attachments/assets/0d55223e-ad67-46fb-89de-66b6f8963559" />
 
@@ -8,46 +8,65 @@ Parallax Wallpaper brings your macOS desktop to life using the built-in accelero
 
 ## Features
 
-* Real-time desktop parallax using built-in Apple Silicon accelerometer sensors
-* **Apple-Inspired Floating Navigation Bar**: Modern glassmorphic bottom pill navigation bar for switching between single and multi-layer parallax modes
-* **Multi-Layer 3D Parallax Engine**: Upload $N$ image layers (PNGs/JPEGs) where the first uploaded image forms the background and the last forms the foreground
-* **Per-Layer Fine Tuning**: Individual controls for depth sensitivity multipliers ($0.0\times$ to $3.0\times$), zoom crop scaling, opacity, and layer visibility
-* **Auto-Distribute Depths**: One-click automatic calculation to space depth factors across all $N$ layers
-* **Center Calibration** to instantly snap the 3D focal point to your current physical desk angle
-* Adjustable global motion sensitivity for perfectly tuned movement
-* Live visual telemetry tracking your X and Y axis pixel offsets
-* Menu bar integration for quick access
+* **Dual Motion Tracking Sources**: Switch seamlessly between **Mac Accelerometer** (`IOKit` `AppleSPUHIDDevice`) and **AirPods Spatial Head Tracking** (`CoreMotion` `CMHeadphoneMotionManager`).
+* **Apple-Inspired Floating Navigation Bar**: Glassmorphic bottom pill navigation bar for switching between single and multi-layer parallax modes.
+* **Apple-Style Block Motion Selector**: Custom Control Center style single-block slider switch to toggle between Mac and AirPods motion tracking.
+* **Multi-Layer 3D Parallax Engine**: Upload $N$ image layers (PNGs/JPEGs) where the first uploaded image forms the background and the last forms the foreground.
+* **Interactive Canvas Drag & Resize**:
+  * Drag any layer directly inside the preview canvas to position it on screen.
+  * Drag the **top-right circular handle dot** on the selection bounding box to visually resize layer scale ($0.15\times$ to $2.5\times$).
+* **Draggable Layer Reordering**: Drag-and-drop or reorder layers in the sidebar stack.
+* **Inverted Motion Smoothing Control**: Intuitive motion damping slider ($0.0$ Raw/Direct to $1.0$ Ultra Smooth).
+* **Live Draft Preview vs. Applied Wallpaper**: Tweak layer settings with instant live preview in the window, then click **"Apply Changes to Wallpaper"** to project onto your desktop.
+* **Aspect-Fitted Monitor Preview**: Custom $16:10$ Mac screen monitor preview frame.
+* **Center Calibration**: One-click calibration to snap the 3D focal point to your current physical desk angle or head position.
+* **Menu Bar Integration**: Quick access icon in the macOS menu bar.
+
+---
+
+## Installation & macOS Security Note
+
+When downloading compiled `.dmg` builds from GitHub Releases, macOS Gatekeeper may display a warning such as *"Parallax Wallpaper is damaged and can’t be opened"* or *"Unidentified Developer"*.
+
+### Reason
+Parallax Wallpaper intentionally bypasses the macOS App Sandbox to read raw, unclipped hardware motion data directly from the internal Mac SPU accelerometer (`AppleSPUHIDDevice` via `IOKit`) and AirPods spatial motion sensors (`CMHeadphoneMotionManager`). Because the application is distributed as a free open-source release outside the Mac App Store, macOS automatically attaches a `com.apple.quarantine` extended attribute to the downloaded app bundle.
+
+### Quick Fix Command
+After dragging `parallexWall.app` into your `/Applications` folder, open **Terminal** and run the following command to strip the quarantine attribute:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
+```
+
+Once executed, launch `parallexWall.app` normally from Launchpad or Finder.
 
 ---
 
 ## Parallax Modes & Settings
 
 ### 1. Single Image Mode
-The classic 1-image parallax experience. Upload any high-resolution image, dial in global motion sensitivity, and project it cleanly onto your desktop background.
+The classic 1-image parallax experience. Upload any high-resolution image, dial in motion sensitivity and motion smoothing, and project it cleanly onto your desktop background.
 
 ### 2. Multi-Layer Mode
 Compose custom 3D depth scenes using multiple stacked image layers (ideal for transparent PNGs):
 * **Layer Order**: Layer 1 (first upload) maps to the **Background** (lowest motion depth), and Layer $N$ (last upload) maps to the **Foreground** (highest motion depth).
 * **Depth Multipliers**: Tune individual layer reaction speed to physical tilt. Foreground elements shift more dynamically while background elements move subtly.
-* **Layer Inspector**: Adjust zoom crop scale, opacity ($0\%$ to $100\%$), visibility toggles, or re-order layers on the fly.
-
-### Center Calibration
-The **Set Current Angle as Center** feature is a quick-action calibration tool, perfect for when you switch environments (like moving from a flat desk to your lap). It monitors exactly how your MacBook is currently tilted and instantly maps that physical orientation to be the new "zero" point target. 
+* **Layer Inspector**: Adjust zoom crop scale ($0.15\times$ to $2.5\times$), opacity ($0\%$ to $100\%$), visibility toggles, or re-order layers on the fly.
+* **Canvas Interactivity**: Select a layer and drag it on the preview canvas to position it, or drag the top-right blue handle dot to resize its scale.
 
 ---
 
 ## Requirements
 
 * macOS 12.0 (Monterey) or later
-* Mac devices with built-in IOKit hardware accelerometers:
-  * MacBook Air (M1, M2, M3)
-  * MacBook Pro (M1, M2, M3)
-    *(Note: Desktop hardware such as the Mac mini, Mac Studio, and Mac Pro do not include internal motion sensors.)*
+* Motion Tracking Requirements:
+  * **Mac Accelerometer**: MacBook Air (M1, M2, M3, M4) or MacBook Pro (M1, M2, M3, M4) with internal SPU sensors.
+  * **AirPods Head Tracking**: AirPods Pro, AirPods Max, or AirPods (3rd gen+) with head motion tracking support.
 
 ---
 
 ## How It Works
 
-This application directly integrates with the extremely low-level `AppleSPUHIDDevice` APIs using macOS `IOKit`. Because the internal Apple Silicon accelerometer is typically reserved for system-level functions (like screen auto-rotate logic or drop-protection), Parallax Wallpaper intentionally runs outside the strict macOS App Sandbox to capture this raw proprietary sensor data.
+This application directly integrates with low-level `AppleSPUHIDDevice` APIs using macOS `IOKit` for Mac motion and `CMHeadphoneMotionManager` for AirPods head tracking. 
 
-The raw X, Y, and Z hardware values are streamed at 100Hz into a low-pass exponential moving average filter. This mathematical backend drastically smooths out all micro-vibrations, processing completely stable horizontal and vertical pixel offsets straight to a borderless desktop-level `NSWindow`.
+The raw rotational and attitude data vectors are streamed into a low-pass exponential moving average filter governed by the **Motion Smoothing** slider. This mathematical backend smooths out all micro-vibrations, rendering stable horizontal and vertical pixel offsets directly onto a borderless desktop-level `NSWindow` behind your icons.

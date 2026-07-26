@@ -29,6 +29,19 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     // Configurable Low-pass filter smoothing factor (0.01 = Ultra Smooth, 0.25 = Raw/Direct)
     @Published var smoothing: Double = 0.05
     
+    // User-facing smoothing property (0.0 = Raw/Direct, 1.0 = Ultra Smooth)
+    var userSmoothing: Double {
+        get {
+            let clamped = max(0.01, min(0.25, smoothing))
+            return (0.25 - clamped) / 0.24
+        }
+        set {
+            let clampedUser = max(0.0, min(1.0, newValue))
+            smoothing = 0.25 - (clampedUser * 0.24)
+            objectWillChange.send()
+        }
+    }
+    
     // Motion Source selection (Mac Hardware vs. AirPods Spatial Motion)
     @Published var motionSource: MotionSource = .mac {
         didSet {

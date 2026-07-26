@@ -135,6 +135,11 @@ struct MultiLayerEditorView: View {
     @State private var showingImagePicker = false
     @State private var selectedLayerId: UUID? = nil
     @State private var draggedItem: ParallaxLayer? = nil
+    
+    // Drag gestures for positioning and resizing
+    @State private var isDragModeDetermined = false
+    @State private var isResizingMode = false
+    @State private var dragInitialScale: CGFloat = 1.0
     @State private var dragInitialOffsetX: Double = 0
     @State private var dragInitialOffsetY: Double = 0
     
@@ -176,40 +181,64 @@ struct MultiLayerEditorView: View {
                     }
                 } else {
                     VStack {
-                        DesktopMonitorFrame {
-                            MultiLayerParallaxView(
-                                layers: wallpaperController.draftLayers,
-                                sensor: sensor,
-                                sensitivity: wallpaperController.draftSensitivity,
-                                selectedLayerId: selectedLayerId
+                        GeometryReader { frameGeo in
+                            DesktopMonitorFrame {
+                                MultiLayerParallaxView(
+                                    layers: wallpaperController.draftLayers,
+                                    sensor: sensor,
+                                    sensitivity: wallpaperController.draftSensitivity,
+                                    selectedLayerId: selectedLayerId
+                                )
+                            }
+                            // Requirement 3: Drag canvas body to position, drag top-right handle dot to resize layer scale
+                            .gesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        guard let layer = selectedLayer else { return }
+                                        
+                                        if !isDragModeDetermined {
+                                            // Check if drag starts near top-right corner region of the monitor frame
+                                            let startX = value.startLocation.x
+                                            let startY = value.startLocation.y
+                                            let frameWidth = frameGeo.size.width
+                                            
+                                            if startX > frameWidth - 100 && startY < 100 {
+                                                isResizingMode = true
+                                                dragInitialScale = layer.scaleEffect
+                                            } else {
+                                                isResizingMode = false
+                                                dragInitialOffsetX = layer.offsetX
+                                                dragInitialOffsetY = layer.offsetY
+                                            }
+                                            isDragModeDetermined = true
+                                        }
+                                        
+                                        var updated = layer
+                                        if isResizingMode {
+                                            let scaleDelta = (value.translation.width - value.translation.height) / 200.0
+                                            let newScale = max(0.15, min(2.5, dragInitialScale + scaleDelta))
+                                            updated.scaleEffect = newScale
+                                        } else {
+                                            updated.offsetX = dragInitialOffsetX + value.translation.width
+                                            updated.offsetY = dragInitialOffsetY + value.translation.height
+                                        }
+                                        wallpaperController.updateLayer(updated)
+                                    }
+                                    .onEnded { _ in
+                                        isDragModeDetermined = false
+                                        isResizingMode = false
+                                        dragInitialOffsetX = 0
+                                        dragInitialOffsetY = 0
+                                    }
                             )
                         }
                         .padding(32)
-                        // Requirement 2: Drag Selected Layer directly in the Preview Canvas
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    guard let layer = selectedLayer else { return }
-                                    if dragInitialOffsetX == 0 && dragInitialOffsetY == 0 {
-                                        dragInitialOffsetX = layer.offsetX
-                                        dragInitialOffsetY = layer.offsetY
-                                    }
-                                    var updated = layer
-                                    updated.offsetX = dragInitialOffsetX + value.translation.width
-                                    updated.offsetY = dragInitialOffsetY + value.translation.height
-                                    wallpaperController.updateLayer(updated)
-                                }
-                                .onEnded { _ in
-                                    dragInitialOffsetX = 0
-                                    dragInitialOffsetY = 0
-                                }
-                        )
                         .overlay(alignment: .topLeading) {
                             if let layer = selectedLayer {
                                 HStack(spacing: 6) {
-                                    Image(systemName: "hand.draw")
+                                    Image(systemName: isResizingMode ? "arrow.up.left.and.arrow.down.right" : "hand.draw")
                                         .font(.caption2)
-                                    Text("Dragging '\(layer.name)' | Drag canvas to position")
+                                    Text(isResizingMode ? "Resizing '\(layer.name)' scale (\(String(format: "%.2fx", layer.scaleEffect)))" : "Positioning '\(layer.name)' | Drag top-right dot to resize scale")
                                         .font(.caption2)
                                         .fontWeight(.medium)
                                 }
@@ -317,23 +346,24 @@ struct MultiLayerEditorView: View {
                                 }
                             }
                             
+                            // Requirement 1: Motion Damping / Smoothness Slider (Inverted)
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
                                     Text("Motion Smoothing")
                                         .font(.subheadline)
                                         .fontWeight(.medium)
                                     Spacer()
-                                    Text(sensor.smoothing < 0.04 ? "Ultra Smooth" : (sensor.smoothing > 0.15 ? "Direct/Raw" : "Balanced"))
+                                    Text(sensor.userSmoothing > 0.8 ? "Ultra Smooth" : (sensor.userSmoothing < 0.2 ? "Direct/Raw" : "Balanced"))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                                 
-                                Slider(value: $sensor.smoothing, in: 0.01...0.25) {
+                                Slider(value: $sensor.userSmoothing, in: 0.0...1.0) {
                                     Text("Smoothing")
                                 } minimumValueLabel: {
-                                    Image(systemName: "waveform.path.smooth").foregroundStyle(.secondary)
-                                } maximumValueLabel: {
                                     Image(systemName: "waveform.path").foregroundStyle(.secondary)
+                                } maximumValueLabel: {
+                                    Image(systemName: "waveform.path.smooth").foregroundStyle(.secondary)
                                 }
                             }
                             
@@ -351,7 +381,7 @@ struct MultiLayerEditorView: View {
                         
                         Divider()
                         
-                        // MARK: - Requirement 3: Layers Section Header with "+ Add Layer" Button
+                        // MARK: - Layers Section Header with "+ Add Layer" Button
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Label("Layers (\(wallpaperController.draftLayers.count))", systemImage: "layers")
@@ -360,7 +390,6 @@ struct MultiLayerEditorView: View {
                                 
                                 Spacer()
                                 
-                                // Explicit "+ Add Layer" button inside Layers section header
                                 Button {
                                     showingImagePicker = true
                                 } label: {
@@ -486,7 +515,7 @@ struct MultiLayerEditorView: View {
                                     )
                                 }
                                 
-                                // Requirement 1: Zoom Crop Scale slider from 0.15x (zoomed out small) to 2.5x
+                                // Zoom Crop Scale slider from 0.15x (zoomed out small) to 2.5x
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack {
                                         Text("Zoom / Layer Scale")

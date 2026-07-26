@@ -148,24 +148,24 @@ struct SingleImageEditorView: View {
                                 }
                             }
                             
-                            // Requirement 2: Motion Damping / Smoothness Slider
-                            VStack(alignment: .leading, spacing: 6) {
+                            // Requirement 2: Motion Damping / Smoothness Slider (Inverted)
+                            VStack(alignment: .leading, spacing: 4) {
                                 HStack {
                                     Text("Motion Smoothing")
                                         .font(.subheadline)
                                         .fontWeight(.medium)
                                     Spacer()
-                                    Text(sensor.smoothing < 0.04 ? "Ultra Smooth" : (sensor.smoothing > 0.15 ? "Direct/Raw" : "Balanced"))
+                                    Text(sensor.userSmoothing > 0.8 ? "Ultra Smooth" : (sensor.userSmoothing < 0.2 ? "Direct/Raw" : "Balanced"))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                                 
-                                Slider(value: $sensor.smoothing, in: 0.01...0.25) {
+                                Slider(value: $sensor.userSmoothing, in: 0.0...1.0) {
                                     Text("Smoothing")
                                 } minimumValueLabel: {
-                                    Image(systemName: "waveform.path.smooth").foregroundStyle(.secondary)
-                                } maximumValueLabel: {
                                     Image(systemName: "waveform.path").foregroundStyle(.secondary)
+                                } maximumValueLabel: {
+                                    Image(systemName: "waveform.path.smooth").foregroundStyle(.secondary)
                                 }
                             }
                             

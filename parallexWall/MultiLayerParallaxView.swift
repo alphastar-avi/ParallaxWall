@@ -44,10 +44,20 @@ struct MultiLayerParallaxView: View {
                                 .overlay(
                                     Group {
                                         if isSelected {
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
-                                                .scaleEffect(layer.scaleEffect * 0.98)
-                                                .offset(x: clampedX, y: clampedY)
+                                            ZStack(alignment: .topTrailing) {
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                                                
+                                                // Requirement 3: Top-Right Resize Handle Dot
+                                                Circle()
+                                                    .fill(Color.blue)
+                                                    .frame(width: 14, height: 14)
+                                                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                                                    .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
+                                                    .offset(x: 7, y: -7)
+                                            }
+                                            .scaleEffect(layer.scaleEffect * 0.98)
+                                            .offset(x: clampedX, y: clampedY)
                                         }
                                     }
                                 )
