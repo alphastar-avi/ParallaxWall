@@ -21,7 +21,7 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
 
       - name: Build Release macOS App
-        run: |
+        run: 
           xcodebuild -project parallexWall.xcodeproj \
                      -scheme parallexWall \
                      -configuration Release \

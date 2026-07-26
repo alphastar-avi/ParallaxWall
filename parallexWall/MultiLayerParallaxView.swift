@@ -4,6 +4,7 @@ struct MultiLayerParallaxView: View {
     let layers: [ParallaxLayer]
     @ObservedObject var sensor: SensorManager
     let sensitivity: Double
+    var selectedLayerId: UUID? = nil
     
     @State private var rawOffset: CGSize = .zero
     
@@ -19,22 +20,37 @@ struct MultiLayerParallaxView: View {
                             let targetX = rawOffset.width * layer.depthFactor + layer.offsetX
                             let targetY = rawOffset.height * layer.depthFactor + layer.offsetY
                             
-                            // Limit max offset to prevent viewing past edge of image crop
                             let screenWidth = geo.size.width > 0 ? geo.size.width : (NSScreen.main?.frame.width ?? 1920)
                             let screenHeight = geo.size.height > 0 ? geo.size.height : (NSScreen.main?.frame.height ?? 1080)
                             
-                            let maxOffsetH = max(0, (layer.scaleEffect - 1.0) * screenWidth / 2)
-                            let maxOffsetV = max(0, (layer.scaleEffect - 1.0) * screenHeight / 2)
+                            // For layers scaled down (<1.0), allow generous parallax motion without freezing
+                            let maxOffsetH = layer.scaleEffect >= 1.0 ?
+                                max(screenWidth * 0.25, (layer.scaleEffect - 1.0) * screenWidth / 2) :
+                                screenWidth * 0.4
+                            let maxOffsetV = layer.scaleEffect >= 1.0 ?
+                                max(screenHeight * 0.25, (layer.scaleEffect - 1.0) * screenHeight / 2) :
+                                screenHeight * 0.4
                             
                             let clampedX = max(min(targetX, maxOffsetH), -maxOffsetH)
                             let clampedY = max(min(targetY, maxOffsetV), -maxOffsetV)
+                            let isSelected = (selectedLayerId == layer.id)
                             
                             Image(nsImage: nsImage)
                                 .resizable()
-                                .aspectRatio(contentMode: .fill)
+                                .aspectRatio(contentMode: .fit)
                                 .scaleEffect(layer.scaleEffect)
                                 .opacity(layer.opacity)
                                 .offset(x: clampedX, y: clampedY)
+                                .overlay(
+                                    Group {
+                                        if isSelected {
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                                                .scaleEffect(layer.scaleEffect * 0.98)
+                                                .offset(x: clampedX, y: clampedY)
+                                        }
+                                    }
+                                )
                         }
                     }
                 }

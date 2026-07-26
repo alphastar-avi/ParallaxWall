@@ -1,11 +1,35 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+struct LayerDropDelegate: DropDelegate {
+    let item: ParallaxLayer
+    @Binding var layers: [ParallaxLayer]
+    @Binding var draggedItem: ParallaxLayer?
+    
+    func performDrop(info: DropInfo) -> Bool {
+        draggedItem = nil
+        return true
+    }
+    
+    func dropEntered(info: DropInfo) {
+        guard let draggedItem = draggedItem, draggedItem.id != item.id else { return }
+        
+        if let fromIndex = layers.firstIndex(of: draggedItem),
+           let toIndex = layers.firstIndex(of: item) {
+            withAnimation {
+                layers.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+            }
+        }
+    }
+}
+
 struct LayerRowView: View {
     let layer: ParallaxLayer
     let isSelected: Bool
     let isTop: Bool
     let isBottom: Bool
+    @Binding var layers: [ParallaxLayer]
+    @Binding var draggedItem: ParallaxLayer?
     let onMoveUp: () -> Void
     let onMoveDown: () -> Void
     let onToggleVisibility: () -> Void
@@ -56,7 +80,7 @@ struct LayerRowView: View {
                     }
                 }
                 
-                Text("Depth: \(String(format: "%.1fx", layer.depthFactor)) | Opacity: \(Int(layer.opacity * 100))%")
+                Text("Depth: \(String(format: "%.1fx", layer.depthFactor)) | Scale: \(String(format: "%.2fx", layer.scaleEffect))")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -94,6 +118,11 @@ struct LayerRowView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 1.5)
         )
+        .onDrag {
+            self.draggedItem = layer
+            return NSItemProvider(object: layer.id.uuidString as NSString)
+        }
+        .onDrop(of: [.text], delegate: LayerDropDelegate(item: layer, layers: $layers, draggedItem: $draggedItem))
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
     }
@@ -106,6 +135,8 @@ struct MultiLayerEditorView: View {
     @State private var showingImagePicker = false
     @State private var selectedLayerId: UUID? = nil
     @State private var draggedItem: ParallaxLayer? = nil
+    @State private var dragInitialOffsetX: Double = 0
+    @State private var dragInitialOffsetY: Double = 0
     
     var selectedLayer: ParallaxLayer? {
         wallpaperController.draftLayers.first(where: { $0.id == selectedLayerId })
@@ -149,26 +180,50 @@ struct MultiLayerEditorView: View {
                             MultiLayerParallaxView(
                                 layers: wallpaperController.draftLayers,
                                 sensor: sensor,
-                                sensitivity: wallpaperController.draftSensitivity
+                                sensitivity: wallpaperController.draftSensitivity,
+                                selectedLayerId: selectedLayerId
                             )
                         }
                         .padding(32)
+                        // Requirement 2: Drag Selected Layer directly in the Preview Canvas
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    guard let layer = selectedLayer else { return }
+                                    if dragInitialOffsetX == 0 && dragInitialOffsetY == 0 {
+                                        dragInitialOffsetX = layer.offsetX
+                                        dragInitialOffsetY = layer.offsetY
+                                    }
+                                    var updated = layer
+                                    updated.offsetX = dragInitialOffsetX + value.translation.width
+                                    updated.offsetY = dragInitialOffsetY + value.translation.height
+                                    wallpaperController.updateLayer(updated)
+                                }
+                                .onEnded { _ in
+                                    dragInitialOffsetX = 0
+                                    dragInitialOffsetY = 0
+                                }
+                        )
+                        .overlay(alignment: .topLeading) {
+                            if let layer = selectedLayer {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "hand.draw")
+                                        .font(.caption2)
+                                    Text("Dragging '\(layer.name)' | Drag canvas to position")
+                                        .font(.caption2)
+                                        .fontWeight(.medium)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(.ultraThinMaterial)
+                                .cornerRadius(6)
+                                .padding(40)
+                            }
+                        }
                     }
                 }
             }
             .frame(minWidth: 400, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
-            .overlay(alignment: .bottomTrailing) {
-                if !wallpaperController.draftLayers.isEmpty {
-                    Button(action: { showingImagePicker = true }) {
-                        Label("Add More Layers", systemImage: "plus.circle")
-                            .padding(8)
-                            .background(.ultraThinMaterial)
-                            .cornerRadius(8)
-                    }
-                    .padding(20)
-                    .buttonStyle(.plain)
-                }
-            }
             
             Divider()
             
@@ -222,7 +277,6 @@ struct MultiLayerEditorView: View {
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                             
-                            // Requirement 5: Motion Source Selector (Mac vs. AirPods)
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Motion Source")
                                     .font(.subheadline)
@@ -243,7 +297,6 @@ struct MultiLayerEditorView: View {
                                 }
                             }
                             
-                            // Motion Sensitivity
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
                                     Text("Motion Sensitivity")
@@ -264,7 +317,6 @@ struct MultiLayerEditorView: View {
                                 }
                             }
                             
-                            // Requirement 2: Motion Damping / Smoothness Slider
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
                                     Text("Motion Smoothing")
@@ -299,7 +351,7 @@ struct MultiLayerEditorView: View {
                         
                         Divider()
                         
-                        // MARK: - Requirement 1: Draggable Layer Stack List
+                        // MARK: - Requirement 3: Layers Section Header with "+ Add Layer" Button
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Label("Layers (\(wallpaperController.draftLayers.count))", systemImage: "layers")
@@ -308,7 +360,20 @@ struct MultiLayerEditorView: View {
                                 
                                 Spacer()
                                 
-                                if !wallpaperController.draftLayers.isEmpty {
+                                // Explicit "+ Add Layer" button inside Layers section header
+                                Button {
+                                    showingImagePicker = true
+                                } label: {
+                                    Label("Add Layer", systemImage: "plus")
+                                        .font(.caption)
+                                        .fontWeight(.bold)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                            
+                            if !wallpaperController.draftLayers.isEmpty {
+                                HStack {
                                     Button("Auto Depths") {
                                         withAnimation {
                                             wallpaperController.autoDistributeDepths()
@@ -317,7 +382,9 @@ struct MultiLayerEditorView: View {
                                     .font(.caption)
                                     .buttonStyle(.borderless)
                                     
-                                    Button("Clear") {
+                                    Spacer()
+                                    
+                                    Button("Clear All") {
                                         withAnimation {
                                             wallpaperController.clearLayers()
                                             selectedLayerId = nil
@@ -347,6 +414,8 @@ struct MultiLayerEditorView: View {
                                             isSelected: isSelected,
                                             isTop: isTop,
                                             isBottom: isBottom,
+                                            layers: $wallpaperController.draftLayers,
+                                            draggedItem: $draggedItem,
                                             onMoveUp: {
                                                 if index < wallpaperController.draftLayers.count - 1 {
                                                     withAnimation {
@@ -372,11 +441,6 @@ struct MultiLayerEditorView: View {
                                                 }
                                             }
                                         )
-                                        .onDrag {
-                                            self.draggedItem = layer
-                                            return NSItemProvider(item: layer.id.uuidString as NSString, typeIdentifier: UTType.plainText.identifier)
-                                        }
-                                        .onDrop(of: [.plainText], delegate: LayerDropDelegate(item: layer, layers: $wallpaperController.draftLayers, draggedItem: $draggedItem))
                                     }
                                 }
                             }
@@ -422,10 +486,10 @@ struct MultiLayerEditorView: View {
                                     )
                                 }
                                 
-                                // Zoom Crop Scale
+                                // Requirement 1: Zoom Crop Scale slider from 0.15x (zoomed out small) to 2.5x
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack {
-                                        Text("Zoom Crop Scale")
+                                        Text("Zoom / Layer Scale")
                                             .font(.subheadline)
                                         Spacer()
                                         Text(String(format: "%.2fx", layer.scaleEffect))
@@ -442,7 +506,7 @@ struct MultiLayerEditorView: View {
                                                 wallpaperController.updateLayer(updated)
                                             }
                                         ),
-                                        in: 1.0...2.5
+                                        in: 0.15...2.5
                                     )
                                 }
                                 
@@ -470,6 +534,21 @@ struct MultiLayerEditorView: View {
                                     )
                                 }
                                 
+                                // Reset position offsets button
+                                if layer.offsetX != 0 || layer.offsetY != 0 {
+                                    Button {
+                                        var updated = layer
+                                        updated.offsetX = 0
+                                        updated.offsetY = 0
+                                        wallpaperController.updateLayer(updated)
+                                    } label: {
+                                        Label("Reset Position Offsets", systemImage: "arrow.counterclockwise")
+                                            .font(.caption)
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                                
                                 Button(role: .destructive) {
                                     withAnimation {
                                         wallpaperController.removeLayer(id: layer.id)
@@ -489,7 +568,7 @@ struct MultiLayerEditorView: View {
                     .padding(20)
                 }
                 
-                // MARK: - Requirement 4: Fixed Bottom "Apply Changes to Wallpaper" Button
+                // Fixed Bottom Apply Button
                 VStack(spacing: 8) {
                     Divider()
                     
@@ -540,29 +619,6 @@ struct MultiLayerEditorView: View {
                 }
             case .failure(let error):
                 print("Error picking layer images: \(error)")
-            }
-        }
-    }
-}
-
-// MARK: - Drag & Drop Delegate for Layer Reordering
-struct LayerDropDelegate: DropDelegate {
-    let item: ParallaxLayer
-    @Binding var layers: [ParallaxLayer]
-    @Binding var draggedItem: ParallaxLayer?
-    
-    func performDrop(info: DropInfo) -> Bool {
-        draggedItem = nil
-        return true
-    }
-    
-    func dropEntered(info: DropInfo) {
-        guard let draggedItem = draggedItem, draggedItem.id != item.id else { return }
-        
-        if let fromIndex = layers.firstIndex(of: draggedItem),
-           let toIndex = layers.firstIndex(of: item) {
-            withAnimation {
-                layers.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
             }
         }
     }
