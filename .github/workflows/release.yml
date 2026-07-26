@@ -40,37 +40,33 @@ jobs:
 
       - name: Generate Dynamic Release Notes Body
         run: |
-          PREV_TAG=$(git tag --sort=-creatordate | grep -v "${{ github.ref_name }}" | head -n 1 || echo "")
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "${{ github.ref_name }}" | head -n 1 || echo "")
           echo "Previous release tag detected: '$PREV_TAG'"
           
-          cat << 'EOF' > release_notes.md
-## What's New in Parallax Wallpaper
+          cat << EOF > release_notes.md
+## Release ${{ github.ref_name }}
 
-### Key Features & Enhancements
-* **AirPods Spatial Motion & Mac Accelerometer**: Dual motion tracking supporting both MacBook SPU accelerometer (`IOKit`) and AirPods Head Motion (`CMHeadphoneMotionManager`).
-* **Apple-Style Control Center UI**: Glassmorphic bottom navigation pill and single-block motion source slider switch (**Mac** vs **AirPods**).
-* **Multi-Layer 3D Depth Engine**: Stack $N$ PNG image layers with auto-depth distribution and independent opacity & depth multipliers.
-* **Interactive Canvas Drag & Scaling**: Drag any layer directly on preview canvas to position, or drag the top-right blue handle dot to scale layer zoom ($0.15\times$ to $2.5\times$).
-* **Inverted Motion Smoothing**: Intuitive slider control ($0.0$ Raw/Direct to $1.0$ Ultra Smooth).
-* **Draft Preview & Wallpaper Apply**: Live draft preview before applying changes directly to macOS desktop background.
-
-### macOS Security & Gatekeeper Note
-If macOS displays a warning when launching the app, run the following command in Terminal:
-```bash
-xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
-```
-
-### Recent Commits
+### What's Changed
 EOF
-          
+
           if [ -n "$PREV_TAG" ]; then
             git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" >> release_notes.md
           else
-            git log -n 15 --pretty=format:"* %s (%h)" >> release_notes.md
+            git log -n 20 --pretty=format:"* %s (%h)" >> release_notes.md
           fi
-          echo "" >> release_notes.md
           
-          echo "--- GENERATED RELEASE NOTES ---"
+          cat << 'EOF' >> release_notes.md
+
+---
+
+### macOS Security & Gatekeeper Note
+If macOS displays a security warning when launching the app (*"App is damaged and can't be opened"*), run this command in **Terminal**:
+```bash
+xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
+```
+EOF
+          
+          echo "--- GENERATED DYNAMIC RELEASE NOTES ---"
           cat release_notes.md
 
       - name: Upload Build Artifact
@@ -82,8 +78,10 @@ EOF
       - name: Publish Official GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          echo "Publishing release for tag ${{ github.ref_name }}..."
+          echo "Publishing official release for tag ${{ github.ref_name }}..."
+          gh release delete "${{ github.ref_name }}" --yes --cleanup-tag 2>/dev/null || true
           gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
+          sleep 2
           gh release create "${{ github.ref_name }}" ParallaxWallpaper.dmg \
             --title "Release ${{ github.ref_name }}" \
             --notes-file release_notes.md \
