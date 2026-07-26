@@ -28,76 +28,94 @@ class WallpaperWindow: NSWindow {
 class WallpaperController: ObservableObject {
     @Published var window: WallpaperWindow?
     @Published var isEnabled = false
-    @Published var sensitivity: Double = 0.5
     @Published var selectedTab: ParallaxTab = .single
     
-    // Multi-layer stack state (index 0 = Background / bottom, index N-1 = Foreground / top)
-    @Published var layers: [ParallaxLayer] = []
+    // MARK: - Draft State (used for real-time live preview in app UI)
+    @Published var draftSingleImage: NSImage? = nil
+    @Published var draftLayers: [ParallaxLayer] = []
+    @Published var draftSensitivity: Double = 0.5
     
-    // Active single image selection
-    @Published var singleImage: NSImage? = nil
+    // MARK: - Applied State (used for actual desktop wallpaper window)
+    @Published var appliedSingleImage: NSImage? = nil
+    @Published var appliedLayers: [ParallaxLayer] = []
+    @Published var appliedSensitivity: Double = 0.5
     
-    // MARK: - Layer Stack Operations
+    // MARK: - Unsaved Changes Tracking
+    var hasUnsavedChanges: Bool {
+        if selectedTab == .single {
+            return draftSingleImage !== appliedSingleImage || draftSensitivity != appliedSensitivity
+        } else {
+            return draftLayers != appliedLayers || draftSensitivity != appliedSensitivity
+        }
+    }
+    
+    // MARK: - Layer Stack Draft Operations
     
     func addLayers(urls: [URL]) {
-        for (index, url) in urls.enumerated() {
+        for url in urls {
             if let image = NSImage(contentsOf: url) {
                 let filename = url.deletingPathExtension().lastPathComponent
-                let count = layers.count + 1
+                let count = draftLayers.count + 1
                 let layerName = filename.isEmpty ? "Layer \(count)" : filename
                 let newLayer = ParallaxLayer(
                     name: layerName,
                     image: image,
                     depthFactor: 1.0
                 )
-                layers.append(newLayer)
+                draftLayers.append(newLayer)
             }
         }
         autoDistributeDepths()
-        refreshWallpaperViewIfActive()
     }
     
     func removeLayer(id: UUID) {
-        layers.removeAll { $0.id == id }
+        draftLayers.removeAll { $0.id == id }
         autoDistributeDepths()
-        refreshWallpaperViewIfActive()
     }
     
-    func moveLayer(from source: IndexSet, to destination: Int) {
-        layers.move(fromOffsets: source, toOffset: destination)
-        autoDistributeDepths()
-        refreshWallpaperViewIfActive()
+    func moveLayers(fromOffsets source: IndexSet, toOffset destination: Int) {
+        draftLayers.move(fromOffsets: source, toOffset: destination)
     }
     
     func updateLayer(_ updatedLayer: ParallaxLayer) {
-        if let idx = layers.firstIndex(where: { $0.id == updatedLayer.id }) {
-            layers[idx] = updatedLayer
-            refreshWallpaperViewIfActive()
+        if let idx = draftLayers.firstIndex(where: { $0.id == updatedLayer.id }) {
+            draftLayers[idx] = updatedLayer
         }
     }
     
     func autoDistributeDepths() {
-        guard !layers.isEmpty else { return }
-        if layers.count == 1 {
-            layers[0].depthFactor = 1.0
+        guard !draftLayers.isEmpty else { return }
+        if draftLayers.count == 1 {
+            draftLayers[0].depthFactor = 1.0
             return
         }
         
         let minDepth = 0.2
         let maxDepth = 1.8
-        let step = (maxDepth - minDepth) / Double(layers.count - 1)
+        let step = (maxDepth - minDepth) / Double(draftLayers.count - 1)
         
-        for i in 0..<layers.count {
-            layers[i].depthFactor = (minDepth + step * Double(i))
+        for i in 0..<draftLayers.count {
+            draftLayers[i].depthFactor = (minDepth + step * Double(i))
         }
     }
     
     func clearLayers() {
-        layers.removeAll()
-        refreshWallpaperViewIfActive()
+        draftLayers.removeAll()
     }
     
-    // MARK: - Desktop Wallpaper Toggle & Refresh
+    // MARK: - Save & Apply Changes to Wallpaper
+    
+    func applyChangesToWallpaper(sensor: SensorManager) {
+        appliedSingleImage = draftSingleImage
+        appliedLayers = draftLayers
+        appliedSensitivity = draftSensitivity
+        
+        if isEnabled, let win = window {
+            attachHostingView(to: win, sensor: sensor)
+        }
+    }
+    
+    // MARK: - Desktop Wallpaper Toggle & Host Management
     
     func toggle(sensor: SensorManager) {
         if isEnabled {
@@ -105,28 +123,28 @@ class WallpaperController: ObservableObject {
             window = nil
             isEnabled = false
         } else {
+            // Apply current draft state when enabling
+            appliedSingleImage = draftSingleImage
+            appliedLayers = draftLayers
+            appliedSensitivity = draftSensitivity
+            
             guard let screen = NSScreen.main else { return }
             let win = WallpaperWindow(screen: screen)
             
             attachHostingView(to: win, sensor: sensor)
             
-            win.orderBack(nil) // Ensure it stays behind desktop icons/windows
+            win.orderBack(nil)
             self.window = win
             isEnabled = true
         }
     }
     
-    func refreshWallpaperViewIfActive() {
-        guard isEnabled, let win = window else { return }
-        // Fetch current sensor instance from active scene if possible
-    }
-    
-    func attachHostingView(to win: WallpaperWindow, sensor: SensorManager) {
+    private func attachHostingView(to win: WallpaperWindow, sensor: SensorManager) {
         if selectedTab == .single {
-            let view = ParallaxView(image: singleImage, sensor: sensor, controller: self)
+            let view = ParallaxView(image: appliedSingleImage, sensor: sensor, controller: self)
             win.contentView = NSHostingView(rootView: view)
         } else {
-            let view = MultiLayerParallaxView(layers: layers, sensor: sensor, sensitivity: sensitivity)
+            let view = MultiLayerParallaxView(layers: appliedLayers, sensor: sensor, sensitivity: appliedSensitivity)
             win.contentView = NSHostingView(rootView: view)
         }
     }

@@ -6,7 +6,7 @@ struct ParallaxView: View {
     @ObservedObject var controller: WallpaperController
     
     // Configurable parameters
-    let scaleEffect: CGFloat = 1.2 // Increased crop to allow for larger parallax movement
+    let scaleEffect: CGFloat = 1.2 // Crop margin to allow for larger parallax movement
     
     @State private var currentOffset: CGSize = .zero
     
@@ -27,20 +27,18 @@ struct ParallaxView: View {
             .clipped()
         }
         .onReceive(sensor.$rotation) { rotation in
-            // Calculate target offset based on X and Y (Roll and Pitch)
-            // Sensor values on M1/M2 are raw, need to be normalized
-            // Let's assume the center is 0.0 and max tilt is +/- 16000
-            
             let currentX = rotation.x - sensor.baseRotation.x
             let currentY = rotation.y - sensor.baseRotation.y
             
             let baseScale = 0.005
-            let targetX = -currentX * baseScale * controller.sensitivity 
-            let targetY = currentY * baseScale * controller.sensitivity
+            let targetX = -currentX * baseScale * controller.appliedSensitivity 
+            let targetY = currentY * baseScale * controller.appliedSensitivity
             
-            // Limit the offset to prevent seeing the edges
-            let maxOffsetH = (scaleEffect - 1.0) * NSScreen.main!.frame.width / 2
-            let maxOffsetV = (scaleEffect - 1.0) * NSScreen.main!.frame.height / 2
+            let screenWidth = NSScreen.main?.frame.width ?? 1920
+            let screenHeight = NSScreen.main?.frame.height ?? 1080
+            
+            let maxOffsetH = (scaleEffect - 1.0) * screenWidth / 2
+            let maxOffsetV = (scaleEffect - 1.0) * screenHeight / 2
             
             let clampedX = max(min(targetX, maxOffsetH), -maxOffsetH)
             let clampedY = max(min(targetY, maxOffsetV), -maxOffsetV)

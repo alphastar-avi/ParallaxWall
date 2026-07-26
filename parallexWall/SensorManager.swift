@@ -2,24 +2,51 @@ import Foundation
 import IOKit
 import IOKit.hid
 import Combine
+import CoreMotion
 
-class SensorManager: ObservableObject {
+public enum MotionSource: String, CaseIterable, Identifiable {
+    case mac = "Mac"
+    case airpods = "AirPods"
+    
+    public var id: String { rawValue }
+    
+    public var displayName: String { rawValue }
+    
+    public var iconName: String {
+        switch self {
+        case .mac:
+            return "macbook"
+        case .airpods:
+            return "airpods.pro"
+        }
+    }
+}
+
+class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegate {
     @Published var rotation = (x: Double(0), y: Double(0), z: Double(0))
     @Published var baseRotation = (x: Double(0), y: Double(0), z: Double(0))
     
-    // Low-pass filter smoothing factor (lower = smoother but slightly delayed)
-    private let smoothing: Double = 0.05
+    // Configurable Low-pass filter smoothing factor (0.01 = Ultra Smooth, 0.25 = Raw/Direct)
+    @Published var smoothing: Double = 0.05
     
-    func calibrate() {
-        self.baseRotation = self.rotation
+    // Motion Source selection (Mac Hardware vs. AirPods Spatial Motion)
+    @Published var motionSource: MotionSource = .mac {
+        didSet {
+            switchMotionSource(to: motionSource)
+        }
     }
     
-
+    @Published var isAirPodsAvailable: Bool = false
+    @Published var isAirPodsConnected: Bool = false
+    
     private var hidDevice: IOHIDDevice?
     private var reportBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 64)
+    private let headphoneManager = CMHeadphoneMotionManager()
     
-    init() {
+    override init() {
+        super.init()
         setupSensor()
+        setupAirPodsMotion()
     }
     
     deinit {
@@ -27,7 +54,14 @@ class SensorManager: ObservableObject {
             IOHIDDeviceClose(device, 0)
         }
         reportBuffer.deallocate()
+        stopAirPodsMotion()
     }
+    
+    func calibrate() {
+        self.baseRotation = self.rotation
+    }
+    
+    // MARK: - Mac Hardware SPU Sensor Setup
     
     func setupSensor() {
         // 1. Wake up the SPU drivers
@@ -72,7 +106,6 @@ class SensorManager: ObservableObject {
         if kr == kIOReturnSuccess {
             var service = IOIteratorNext(iterator)
             while service != 0 {
-                // Set reporting properties
                 let props: [(String, Int32)] = [
                     ("SensorPropertyReportingState", 1),
                     ("SensorPropertyPowerState", 1),
@@ -104,7 +137,6 @@ class SensorManager: ObservableObject {
                 let usagePage = getIntProperty(service: service, key: "PrimaryUsagePage")
                 let usage = getIntProperty(service: service, key: "PrimaryUsage")
                 
-                // Vendor Page: 0xFF00, Accel Usage: 3
                 if usagePage == 0xFF00 && usage == 3 {
                     let device = IOHIDDeviceCreate(kCFAllocatorDefault, service)
                     IOObjectRelease(service)
@@ -132,9 +164,7 @@ class SensorManager: ObservableObject {
     }
     
     private func handleReport(report: UnsafeMutablePointer<UInt8>, length: Int) {
-        // IMUDataOffset is 6 as per Go code. X, Y, Z are 32-bit floats/ints at +0, +4, +8
-        // Actually the Go code says ParseIMUReport pulls 32-bit integers.
-        // Let's use the layout from the Go reference.
+        guard motionSource == .mac else { return }
         
         if length >= 18 {
             let offset = 6
@@ -147,11 +177,9 @@ class SensorManager: ObservableObject {
                 let targetY = Double(y)
                 let targetZ = Double(z)
                 
-                // If it's the very first reading, jump immediately
                 if self.rotation.x == 0 && self.rotation.y == 0 && self.rotation.z == 0 {
                     self.rotation = (x: targetX, y: targetY, z: targetZ)
                 } else {
-                    // Apply exponential moving average to smooth raw hardware data
                     let newX = self.rotation.x + (targetX - self.rotation.x) * self.smoothing
                     let newY = self.rotation.y + (targetY - self.rotation.y) * self.smoothing
                     let newZ = self.rotation.z + (targetZ - self.rotation.z) * self.smoothing
@@ -165,5 +193,77 @@ class SensorManager: ObservableObject {
         var value: Int32 = 0
         memcpy(&value, report.advanced(by: offset), 4)
         return value
+    }
+    
+    // MARK: - AirPods CMHeadphoneMotionManager Setup
+    
+    private func setupAirPodsMotion() {
+        headphoneManager.delegate = self
+        isAirPodsAvailable = headphoneManager.isDeviceMotionAvailable
+    }
+    
+    func switchMotionSource(to source: MotionSource) {
+        if source == .airpods {
+            startAirPodsMotion()
+        } else {
+            stopAirPodsMotion()
+        }
+    }
+    
+    func startAirPodsMotion() {
+        guard headphoneManager.isDeviceMotionAvailable else {
+            isAirPodsConnected = false
+            return
+        }
+        
+        headphoneManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
+            guard let self = self, let motion = motion else {
+                self?.isAirPodsConnected = false
+                return
+            }
+            
+            self.isAirPodsConnected = true
+            if self.motionSource == .airpods {
+                self.handleAirPodsMotion(motion)
+            }
+        }
+    }
+    
+    func stopAirPodsMotion() {
+        headphoneManager.stopDeviceMotionUpdates()
+        isAirPodsConnected = false
+    }
+    
+    private func handleAirPodsMotion(_ motion: CMDeviceMotion) {
+        // Attitude radians (-pi to +pi). Scale factor maps radians to ~30,000 unit range for smooth parallax
+        let scaleFactor: Double = 30000.0
+        let targetX = motion.attitude.roll * scaleFactor
+        let targetY = motion.attitude.pitch * scaleFactor
+        let targetZ = motion.attitude.yaw * scaleFactor
+        
+        DispatchQueue.main.async {
+            if self.rotation.x == 0 && self.rotation.y == 0 && self.rotation.z == 0 {
+                self.rotation = (x: targetX, y: targetY, z: targetZ)
+            } else {
+                let newX = self.rotation.x + (targetX - self.rotation.x) * self.smoothing
+                let newY = self.rotation.y + (targetY - self.rotation.y) * self.smoothing
+                let newZ = self.rotation.z + (targetZ - self.rotation.z) * self.smoothing
+                self.rotation = (x: newX, y: newY, z: newZ)
+            }
+        }
+    }
+    
+    // MARK: - CMHeadphoneMotionManagerDelegate
+    
+    func headphoneMotionManagerDidConnect(_ manager: CMHeadphoneMotionManager) {
+        DispatchQueue.main.async {
+            self.isAirPodsConnected = true
+        }
+    }
+    
+    func headphoneMotionManagerDidDisconnect(_ manager: CMHeadphoneMotionManager) {
+        DispatchQueue.main.async {
+            self.isAirPodsConnected = false
+        }
     }
 }
