@@ -729,7 +729,41 @@ struct MultiLayerEditorView: View {
     
     @ViewBuilder
     private var previewCanvasView: some View {
-        ZStack {
+        VStack(spacing: 8) {
+            Spacer(minLength: 0)
+            
+            // Live Telemetry Bar placed directly above DesktopMonitorFrame (outside the top bezel)
+            HStack(spacing: 12) {
+                HStack(spacing: 4) {
+                    Text("Horizontal:")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(String(format: "%+.1f px", offsetX))
+                        .font(.system(.caption, design: .monospaced).bold())
+                }
+                
+                Text("|")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                
+                HStack(spacing: 4) {
+                    Text("Vertical:")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(String(format: "%+.1f px", offsetY))
+                        .font(.system(.caption, design: .monospaced).bold())
+                }
+            }
+            .padding(.vertical, 5)
+            .padding(.horizontal, 12)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .cornerRadius(6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            
             DesktopMonitorFrame {
                 MultiLayerParallaxView(
                     layers: wallpaperController.draftLayers,
@@ -752,42 +786,6 @@ struct MultiLayerEditorView: View {
                         }
                     }
                 )
-            }
-            .padding(.horizontal, 32)
-            .padding(.vertical, 32)
-            // Live Telemetry Bar anchored DIRECTLY above the preview window (outside top bezel)
-            .overlay(alignment: .top) {
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Text("Horizontal:")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(String(format: "%+.1f px", offsetX))
-                            .font(.system(.caption, design: .monospaced).bold())
-                    }
-                    
-                    Text("|")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    
-                    HStack(spacing: 4) {
-                        Text("Vertical:")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(String(format: "%+.1f px", offsetY))
-                            .font(.system(.caption, design: .monospaced).bold())
-                    }
-                }
-                .padding(.vertical, 5)
-                .padding(.horizontal, 12)
-                .background(Color(nsColor: .windowBackgroundColor))
-                .cornerRadius(6)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                .offset(y: -36)
             }
             .overlay(alignment: .topLeading) {
                 if let layer = selectedLayer {
@@ -831,6 +829,10 @@ struct MultiLayerEditorView: View {
                 .buttonStyle(.plain)
                 .padding(40)
             }
+            
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 24)
     }
 }
