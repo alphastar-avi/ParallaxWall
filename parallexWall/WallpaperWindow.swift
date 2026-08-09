@@ -42,9 +42,29 @@ class WallpaperController: ObservableObject {
         return draftLayers != appliedLayers || draftSensitivity != appliedSensitivity
     }
     
+    // MARK: - Undo History Management
+    @Published private(set) var draftLayersHistory: [[ParallaxLayer]] = []
+    
+    var canUndo: Bool {
+        return !draftLayersHistory.isEmpty
+    }
+    
+    func pushUndoState() {
+        draftLayersHistory.append(draftLayers)
+        if draftLayersHistory.count > 25 {
+            draftLayersHistory.removeFirst()
+        }
+    }
+    
+    func undo() {
+        guard let previousState = draftLayersHistory.popLast() else { return }
+        draftLayers = previousState
+    }
+    
     // MARK: - Layer Stack Draft Operations
     
     func addLayers(urls: [URL]) {
+        pushUndoState()
         for url in urls {
             if let image = NSImage(contentsOf: url) {
                 let filename = url.deletingPathExtension().lastPathComponent
@@ -58,25 +78,35 @@ class WallpaperController: ObservableObject {
                 draftLayers.append(newLayer)
             }
         }
-        autoDistributeDepths()
+        autoDistributeDepthsInternal()
     }
     
     func removeLayer(id: UUID) {
+        pushUndoState()
         draftLayers.removeAll { $0.id == id }
-        autoDistributeDepths()
+        autoDistributeDepthsInternal()
     }
     
     func moveLayers(fromOffsets source: IndexSet, toOffset destination: Int) {
+        pushUndoState()
         draftLayers.move(fromOffsets: source, toOffset: destination)
     }
     
     func updateLayer(_ updatedLayer: ParallaxLayer) {
         if let idx = draftLayers.firstIndex(where: { $0.id == updatedLayer.id }) {
+            if draftLayersHistory.last != draftLayers {
+                pushUndoState()
+            }
             draftLayers[idx] = updatedLayer
         }
     }
     
     func autoDistributeDepths() {
+        pushUndoState()
+        autoDistributeDepthsInternal()
+    }
+    
+    private func autoDistributeDepthsInternal() {
         guard !draftLayers.isEmpty else { return }
         if draftLayers.count == 1 {
             draftLayers[0].depthFactor = 1.0
@@ -93,6 +123,7 @@ class WallpaperController: ObservableObject {
     }
     
     func clearLayers() {
+        pushUndoState()
         draftLayers.removeAll()
     }
     

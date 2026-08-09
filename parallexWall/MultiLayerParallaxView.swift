@@ -1,9 +1,11 @@
 import SwiftUI
+import Combine
 
 struct MultiLayerParallaxView: View {
     let layers: [ParallaxLayer]
-    @ObservedObject var sensor: SensorManager
+    @ObservedObject var sensor: SensorManager = SensorManager()
     let sensitivity: Double
+    var isStatic: Bool = false
     var selectedLayerId: UUID? = nil
     
     // Optional callbacks for canvas mouse drag actions
@@ -32,7 +34,6 @@ struct MultiLayerParallaxView: View {
                             let isBackground = (index == 0)
                             let effectiveScale = isBackground ? max(1.15, layer.scaleEffect) : layer.scaleEffect
                             
-                            // User Directive: Strict edge bounds and .fill aspect ratio for background layer (index 0) only
                             let offsets: (x: Double, y: Double) = {
                                 if isBackground {
                                     let maxOffsetH = max(0, (effectiveScale - 1.0) * screenWidth / 2)
@@ -88,7 +89,6 @@ struct MultiLayerParallaxView: View {
                                                             }
                                                     )
                                                 
-                                                // Requirement 2: Directional Handle Scale Drag (Up = Scale Up, Down = Scale Down)
                                                 Circle()
                                                     .fill(Color.blue)
                                                     .frame(width: 20, height: 20)
@@ -102,8 +102,6 @@ struct MultiLayerParallaxView: View {
                                                                 if dragInitialScale == 1.0 {
                                                                     dragInitialScale = effectiveScale
                                                                 }
-                                                                // Dragging UP (negative translation.height) scales UP
-                                                                // Dragging DOWN (positive translation.height) scales DOWN
                                                                 let scaleDelta = -value.translation.height / 150.0
                                                                 let newScale = max(0.15, min(3.0, dragInitialScale + scaleDelta))
                                                                 onLayerScaleChanged?(layer.id, newScale)
@@ -126,6 +124,7 @@ struct MultiLayerParallaxView: View {
             .clipped()
         }
         .onReceive(sensor.$rotation) { rotation in
+            guard !isStatic else { return }
             let currentX = rotation.x - sensor.baseRotation.x
             let currentY = rotation.y - sensor.baseRotation.y
             
