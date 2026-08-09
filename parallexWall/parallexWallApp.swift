@@ -32,20 +32,51 @@ struct LaunchAtLoginHelper {
 struct parallexWallApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var wallpaperController = WallpaperController()
+    @StateObject private var sensor = SensorManager()
+    @StateObject private var collectionManager = CollectionManager.shared
     
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
         
-        MenuBarExtra("Parallax", systemImage: wallpaperController.isEnabled ? "power.circle.fill" : "play.circle") {
-            Button(wallpaperController.isEnabled ? "Pause Wallpaper" : "Resume Wallpaper") {
-                wallpaperController.toggle(sensor: SensorManager())
+        MenuBarExtra("Parallax Wallpaper", systemImage: "square.3.layers.3d.down.right") {
+            // Status Info Header
+            Text(wallpaperController.isEnabled ? "Wallpaper: Active on Desktop" : "Wallpaper: Paused")
+                .font(.caption)
+                .foregroundStyle(wallpaperController.isEnabled ? .green : .secondary)
+            
+            Button(wallpaperController.isEnabled ? "Pause Desktop Wallpaper" : "Activate Desktop Wallpaper") {
+                wallpaperController.toggle(sensor: sensor)
+            }
+            .disabled(wallpaperController.draftLayers.isEmpty && !wallpaperController.isEnabled)
+            
+            Divider()
+            
+            // Motion Calibration
+            Button("Set Current Angle as Center Zero") {
+                sensor.calibrate()
             }
             
             Divider()
             
-            Button("Show Control Panel") {
+            // Quick Saved Collections Submenu
+            if !collectionManager.collections.isEmpty {
+                Menu("Apply Saved Collection (\(collectionManager.collections.count))") {
+                    ForEach(collectionManager.collections) { collection in
+                        Button(collection.title) {
+                            wallpaperController.draftLayers = collection.layers
+                            wallpaperController.draftSensitivity = collection.sensitivity
+                            wallpaperController.applyChangesToWallpaper(sensor: sensor)
+                        }
+                    }
+                }
+                
+                Divider()
+            }
+            
+            // Open Main Control Panel
+            Button("Open Parallax Control Panel") {
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 for window in NSApplication.shared.windows {
                     if window.title == "parallexWall" || window.title.isEmpty {
@@ -54,7 +85,8 @@ struct parallexWallApp: App {
                 }
             }
             
-            Button(LaunchAtLoginHelper.isEnabled ? "Disable Launch at Login" : "Enable Launch at Login") {
+            // Start at Login Option
+            Button(LaunchAtLoginHelper.isEnabled ? "✓ Launch at Login Enabled" : "Enable Launch at Login") {
                 LaunchAtLoginHelper.setEnabled(!LaunchAtLoginHelper.isEnabled)
             }
             
