@@ -614,9 +614,11 @@ struct MultiLayerEditorView: View {
                                     }
                                 } label: {
                                     Label("Remove Layer", systemImage: "trash")
+                                        .foregroundStyle(.red)
                                         .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.bordered)
+                                .tint(.red)
                             }
                             .padding(14)
                             .background(Color(nsColor: .windowBackgroundColor))
