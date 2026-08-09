@@ -41,48 +41,56 @@ struct parallexWallApp: App {
         }
         
         MenuBarExtra("Parallax Wallpaper", systemImage: "square.3.layers.3d.down.right") {
-            Button(wallpaperController.isEnabled ? "Pause Desktop Wallpaper" : "Activate Desktop Wallpaper") {
-                wallpaperController.toggle(sensor: sensor)
-            }
-            .disabled(wallpaperController.draftLayers.isEmpty && !wallpaperController.isEnabled)
-            
-            Button("Update Current Angle") {
-                sensor.calibrate()
-            }
-            
-            Divider()
-            
-            // Quick Saved Collections Submenu
-            if !collectionManager.collections.isEmpty {
-                Menu("Apply Saved Collection (\(collectionManager.collections.count))") {
-                    ForEach(collectionManager.collections) { collection in
-                        Button {
-                            wallpaperController.draftLayers = collection.layers
-                            wallpaperController.draftSensitivity = collection.sensitivity
-                            wallpaperController.applyChangesToWallpaper(sensor: sensor)
-                        } label: {
-                            Text(collection.title)
+            Group {
+                Button(wallpaperController.isEnabled ? "Pause Desktop Wallpaper" : "Activate Desktop Wallpaper") {
+                    wallpaperController.toggle(sensor: sensor)
+                }
+                .disabled(wallpaperController.draftLayers.isEmpty && !wallpaperController.isEnabled)
+                
+                Button("Update Current Angle") {
+                    sensor.calibrate()
+                }
+                
+                Divider()
+                
+                // Quick Saved Collections Submenu
+                if !collectionManager.collections.isEmpty {
+                    Menu("Apply Saved Collection (\(collectionManager.collections.count))") {
+                        ForEach(collectionManager.collections) { collection in
+                            Button {
+                                wallpaperController.draftLayers = collection.layers
+                                wallpaperController.draftSensitivity = collection.sensitivity
+                                wallpaperController.applyChangesToWallpaper(sensor: sensor)
+                            } label: {
+                                Text(collection.title)
+                            }
+                        }
+                    }
+                    
+                    Divider()
+                }
+                
+                // Open Main App Window
+                Button("Open ParallaxWall") {
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                    for window in NSApplication.shared.windows {
+                        if window.title == "parallexWall" || window.title.isEmpty {
+                            window.makeKeyAndOrderFront(nil)
                         }
                     }
                 }
                 
                 Divider()
-            }
-            
-            // Open Main App Window
-            Button("Open ParallaxWall") {
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                for window in NSApplication.shared.windows {
-                    if window.title == "parallexWall" || window.title.isEmpty {
-                        window.makeKeyAndOrderFront(nil)
-                    }
+                
+                Button("Quit Parallax Wallpaper") {
+                    NSApplication.shared.terminate(nil)
                 }
             }
-            
-            Divider()
-            
-            Button("Quit Parallax Wallpaper") {
-                NSApplication.shared.terminate(nil)
+            .onAppear {
+                sensor.isPausedForMenu = true
+            }
+            .onDisappear {
+                sensor.isPausedForMenu = false
             }
         }
     }
