@@ -19,35 +19,42 @@ struct MultiLayerParallaxView: View {
     
     var body: some View {
         GeometryReader { geo in
+            let canvasWidth = geo.size.width > 0 ? geo.size.width : (NSScreen.main?.frame.width ?? 1920)
+            let canvasHeight = geo.size.height > 0 ? geo.size.height : (NSScreen.main?.frame.height ?? 1080)
+            let refWidth = NSScreen.main?.frame.width ?? 1920
+            let refHeight = NSScreen.main?.frame.height ?? 1080
+            
+            let scaleFactor = refWidth > 0 ? (canvasWidth / refWidth) : 1.0
+            
             ZStack {
                 if layers.isEmpty {
                     Color.black
                 } else {
                     ForEach(Array(layers.enumerated()), id: \.element.id) { index, layer in
                         if layer.isVisible, let nsImage = layer.image {
-                            let targetX = rawOffset.width * layer.depthFactor + layer.offsetX
-                            let targetY = rawOffset.height * layer.depthFactor + layer.offsetY
+                            let scaledOffsetX = layer.offsetX * scaleFactor
+                            let scaledOffsetY = layer.offsetY * scaleFactor
                             
-                            let screenWidth = geo.size.width > 0 ? geo.size.width : (NSScreen.main?.frame.width ?? 1920)
-                            let screenHeight = geo.size.height > 0 ? geo.size.height : (NSScreen.main?.frame.height ?? 1080)
+                            let targetX = rawOffset.width * layer.depthFactor * scaleFactor + scaledOffsetX
+                            let targetY = rawOffset.height * layer.depthFactor * scaleFactor + scaledOffsetY
                             
                             let isBackground = (index == 0)
                             let effectiveScale = isBackground ? max(1.15, layer.scaleEffect) : layer.scaleEffect
                             
                             let offsets: (x: Double, y: Double) = {
                                 if isBackground {
-                                    let maxOffsetH = max(0, (effectiveScale - 1.0) * screenWidth / 2)
-                                    let maxOffsetV = max(0, (effectiveScale - 1.0) * screenHeight / 2)
+                                    let maxOffsetH = max(0, (effectiveScale - 1.0) * canvasWidth / 2)
+                                    let maxOffsetV = max(0, (effectiveScale - 1.0) * canvasHeight / 2)
                                     let cX = max(min(targetX, maxOffsetH), -maxOffsetH)
                                     let cY = max(min(targetY, maxOffsetV), -maxOffsetV)
                                     return (x: cX, y: cY)
                                 } else {
                                     let maxOffsetH = effectiveScale >= 1.0 ?
-                                        max(screenWidth * 0.25, (effectiveScale - 1.0) * screenWidth / 2) :
-                                        screenWidth * 0.4
+                                        max(canvasWidth * 0.25, (effectiveScale - 1.0) * canvasWidth / 2) :
+                                        canvasWidth * 0.4
                                     let maxOffsetV = effectiveScale >= 1.0 ?
-                                        max(screenHeight * 0.25, (effectiveScale - 1.0) * screenHeight / 2) :
-                                        screenHeight * 0.4
+                                        max(canvasHeight * 0.25, (effectiveScale - 1.0) * canvasHeight / 2) :
+                                        canvasHeight * 0.4
                                     let cX = max(min(targetX, maxOffsetH), -maxOffsetH)
                                     let cY = max(min(targetY, maxOffsetV), -maxOffsetV)
                                     return (x: cX, y: cY)
@@ -80,8 +87,10 @@ struct MultiLayerParallaxView: View {
                                                                     dragInitialOffsetX = layer.offsetX
                                                                     dragInitialOffsetY = layer.offsetY
                                                                 }
-                                                                let newX = dragInitialOffsetX + value.translation.width
-                                                                let newY = dragInitialOffsetY + value.translation.height
+                                                                let deltaX = value.translation.width / scaleFactor
+                                                                let deltaY = value.translation.height / scaleFactor
+                                                                let newX = dragInitialOffsetX + deltaX
+                                                                let newY = dragInitialOffsetY + deltaY
                                                                 onLayerPositionChanged?(layer.id, newX, newY)
                                                             }
                                                             .onEnded { _ in

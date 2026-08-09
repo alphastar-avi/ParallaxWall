@@ -3,6 +3,17 @@ import SwiftUI
 struct DesktopMonitorFrame<Content: View>: View {
     let content: Content
     
+    private var screenAspectRatio: CGFloat {
+        if let mainScreen = NSScreen.main {
+            let w = mainScreen.frame.width
+            let h = mainScreen.frame.height
+            if w > 0 && h > 0 {
+                return w / h
+            }
+        }
+        return 16.0 / 10.0
+    }
+    
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
     }
@@ -15,7 +26,7 @@ struct DesktopMonitorFrame<Content: View>: View {
                     Color.black
                     content
                 }
-                .aspectRatio(16/10, contentMode: .fit)
+                .aspectRatio(screenAspectRatio, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
