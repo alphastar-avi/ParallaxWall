@@ -28,7 +28,6 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     
     // Configurable Low-pass filter smoothing factor (0.01 = Ultra Smooth, 0.25 = Raw/Direct)
     @Published var smoothing: Double = 0.05
-    @Published var isPausedForMenu: Bool = false
     
     // User-facing smoothing property (0.0 = Raw/Direct, 1.0 = Ultra Smooth)
     var userSmoothing: Double {
@@ -179,7 +178,6 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     
     private func handleReport(report: UnsafeMutablePointer<UInt8>, length: Int) {
         guard motionSource == .mac else { return }
-        guard !isPausedForMenu else { return }
         
         if length >= 18 {
             let offset = 6
@@ -250,8 +248,6 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     }
     
     private func handleAirPodsMotion(_ motion: CMDeviceMotion) {
-        guard !isPausedForMenu else { return }
-        
         // Attitude radians (-pi to +pi). Scale factor maps radians to ~30,000 unit range for smooth parallax
         let scaleFactor: Double = 30000.0
         let targetX = motion.attitude.roll * scaleFactor
