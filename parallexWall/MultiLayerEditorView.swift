@@ -167,6 +167,12 @@ struct MultiLayerEditorView: View {
     @State private var collectionNameInput = ""
     @State private var showSavedToast = false
     
+    // Resizable Sidebar State
+    @State private var sidebarWidth: CGFloat = 360
+    @State private var isDraggingSidebar = false
+    @State private var dragStartSidebarWidth: CGFloat? = nil
+    @State private var dragStartGlobalX: CGFloat? = nil
+    
     var selectedLayer: ParallaxLayer? {
         wallpaperController.draftLayers.first(where: { $0.id == selectedLayerId })
     }
@@ -218,74 +224,50 @@ struct MultiLayerEditorView: View {
                         .controlSize(.large)
                     }
                 } else {
-                    VStack {
-                        DesktopMonitorFrame {
-                            MultiLayerParallaxView(
-                                layers: wallpaperController.draftLayers,
-                                sensor: sensor,
-                                sensitivity: wallpaperController.draftSensitivity,
-                                selectedLayerId: selectedLayerId,
-                                onLayerPositionChanged: { layerId, newX, newY in
-                                    if let idx = wallpaperController.draftLayers.firstIndex(where: { $0.id == layerId }) {
-                                        var updated = wallpaperController.draftLayers[idx]
-                                        updated.offsetX = newX
-                                        updated.offsetY = newY
-                                        wallpaperController.updateLayer(updated)
-                                    }
-                                },
-                                onLayerScaleChanged: { layerId, newScale in
-                                    if let idx = wallpaperController.draftLayers.firstIndex(where: { $0.id == layerId }) {
-                                        var updated = wallpaperController.draftLayers[idx]
-                                        updated.scaleEffect = newScale
-                                        wallpaperController.updateLayer(updated)
-                                    }
-                                }
-                            )
-                        }
-                        .padding(32)
-                        .overlay(alignment: .topLeading) {
-                            if let layer = selectedLayer {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "hand.draw")
-                                        .font(.caption2)
-                                    Text("Selected '\(layer.name)' | Drag body to position, drag top-right blue dot up/down to scale")
-                                        .font(.caption2)
-                                        .fontWeight(.medium)
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(.ultraThinMaterial)
-                                .cornerRadius(6)
-                                .padding(40)
-                            }
-                        }
-                        // Requirement 2: Apple-style "Save Collection" button at bottom-left of preview window
-                        .overlay(alignment: .bottomLeading) {
-                            Button {
-                                collectionNameInput = "My Scene \(collectionManager.collections.count + 1)"
-                                showingSaveModal = true
-                            } label: {
-                                Label("Save Collection", systemImage: "bookmark.fill")
-                                    .font(.subheadline)
-                                    .fontWeight(.bold)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .background(.ultraThinMaterial)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                            .padding(40)
-                        }
-                    }
+                    previewCanvasView
                 }
             }
             .frame(minWidth: 400, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
             
-            Divider()
+            // MARK: - Resizable Splitter Handle
+            ZStack {
+                Rectangle()
+                    .fill(Color(nsColor: .separatorColor))
+                    .frame(width: 1)
+                
+                Rectangle()
+                    .fill(isDraggingSidebar ? Color.blue.opacity(0.4) : Color.clear)
+                    .frame(width: 6)
+            }
+            .frame(width: 8)
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                if hovering {
+                    NSCursor.resizeLeftRight.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture(coordinateSpace: .global)
+                    .onChanged { gesture in
+                        if dragStartSidebarWidth == nil {
+                            dragStartSidebarWidth = sidebarWidth
+                            dragStartGlobalX = gesture.location.x
+                            isDraggingSidebar = true
+                        }
+                        if let startWidth = dragStartSidebarWidth, let startX = dragStartGlobalX {
+                            let delta = startX - gesture.location.x
+                            let newWidth = startWidth + delta
+                            sidebarWidth = min(max(newWidth, 280), 600)
+                        }
+                    }
+                    .onEnded { _ in
+                        dragStartSidebarWidth = nil
+                        dragStartGlobalX = nil
+                        isDraggingSidebar = false
+                    }
+            )
             
             // MARK: - Right Side: Control Sidebar
             VStack(spacing: 0) {
@@ -305,17 +287,6 @@ struct MultiLayerEditorView: View {
                                 Spacer()
                             }
                             
-                            Text(wallpaperController.isEnabled ?
-                                 "Active on Desktop" : "Wallpaper Paused")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(wallpaperController.isEnabled ? Color.green.opacity(0.2) : Color.secondary.opacity(0.2))
-                                .foregroundStyle(wallpaperController.isEnabled ? .green : .secondary)
-                                .clipShape(Capsule())
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            
                             Button(action: {
                                 wallpaperController.toggle(sensor: sensor)
                             }) {
@@ -329,34 +300,6 @@ struct MultiLayerEditorView: View {
                             .disabled(wallpaperController.draftLayers.isEmpty)
                             .controlSize(.large)
                         }
-                        
-                        // Minimalist Telemetry Bar
-                        HStack(spacing: 12) {
-                            HStack(spacing: 4) {
-                                Text("Horizontal:")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Text(String(format: "%+.1f px", offsetX))
-                                    .font(.system(.caption, design: .monospaced).bold())
-                            }
-                            
-                            Text("|")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                            
-                            HStack(spacing: 4) {
-                                Text("Vertical:")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Text(String(format: "%+.1f px", offsetY))
-                                    .font(.system(.caption, design: .monospaced).bold())
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 10)
-                        .background(Color(nsColor: .windowBackgroundColor))
-                        .cornerRadius(6)
                         
                         Divider()
                         
@@ -422,7 +365,7 @@ struct MultiLayerEditorView: View {
                                 } minimumValueLabel: {
                                     Image(systemName: "waveform.path").foregroundStyle(.secondary)
                                 } maximumValueLabel: {
-                                    Image(systemName: "waveform.path.smooth").foregroundStyle(.secondary)
+                                    Image(systemName: "waveform.path.ecg").foregroundStyle(.secondary)
                                 }
                             }
                             
@@ -453,34 +396,59 @@ struct MultiLayerEditorView: View {
                                     showingImagePicker = true
                                 } label: {
                                     Label("Add Layer", systemImage: "plus")
-                                        .font(.caption)
+                                        .font(.subheadline)
                                         .fontWeight(.bold)
                                 }
                                 .buttonStyle(.bordered)
-                                .controlSize(.small)
+                                .controlSize(.regular)
                             }
                             
-                            if !wallpaperController.draftLayers.isEmpty {
-                                HStack {
-                                    Button("Auto Depths") {
-                                        withAnimation {
-                                            wallpaperController.autoDistributeDepths()
+                            if !wallpaperController.draftLayers.isEmpty || wallpaperController.canUndo {
+                                HStack(spacing: 8) {
+                                    if !wallpaperController.draftLayers.isEmpty {
+                                        Button {
+                                            withAnimation {
+                                                wallpaperController.autoDistributeDepths()
+                                            }
+                                        } label: {
+                                            Label("Auto Depths", systemImage: "wand.and.stars")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
                                         }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.regular)
                                     }
-                                    .font(.caption)
-                                    .buttonStyle(.borderless)
                                     
                                     Spacer()
                                     
-                                    Button("Clear All") {
-                                        withAnimation {
-                                            wallpaperController.clearLayers()
-                                            selectedLayerId = nil
+                                    if wallpaperController.canUndo {
+                                        Button {
+                                            withAnimation {
+                                                wallpaperController.undo()
+                                            }
+                                        } label: {
+                                            Label("Undo", systemImage: "arrow.uturn.backward")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
                                         }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.regular)
                                     }
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                                    .buttonStyle(.borderless)
+                                    
+                                    if !wallpaperController.draftLayers.isEmpty {
+                                        Button(role: .destructive) {
+                                            withAnimation {
+                                                wallpaperController.clearLayers()
+                                                selectedLayerId = nil
+                                            }
+                                        } label: {
+                                            Label("Clear All", systemImage: "trash")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.regular)
+                                    }
                                 }
                             }
                             
@@ -691,7 +659,7 @@ struct MultiLayerEditorView: View {
                     .background(Color(nsColor: .windowBackgroundColor))
                 }
             }
-            .frame(width: 360)
+            .frame(width: sidebarWidth)
             .background(Color(nsColor: .controlBackgroundColor))
         }
         .fileImporter(
@@ -754,6 +722,106 @@ struct MultiLayerEditorView: View {
             }
             .padding(24)
             .frame(width: 380)
+        }
+    }
+    
+    @ViewBuilder
+    private var previewCanvasView: some View {
+        VStack {
+            DesktopMonitorFrame {
+                MultiLayerParallaxView(
+                    layers: wallpaperController.draftLayers,
+                    sensor: sensor,
+                    sensitivity: wallpaperController.draftSensitivity,
+                    selectedLayerId: selectedLayerId,
+                    onLayerPositionChanged: { layerId, newX, newY in
+                        if let idx = wallpaperController.draftLayers.firstIndex(where: { $0.id == layerId }) {
+                            var updated = wallpaperController.draftLayers[idx]
+                            updated.offsetX = newX
+                            updated.offsetY = newY
+                            wallpaperController.updateLayer(updated)
+                        }
+                    },
+                    onLayerScaleChanged: { layerId, newScale in
+                        if let idx = wallpaperController.draftLayers.firstIndex(where: { $0.id == layerId }) {
+                            var updated = wallpaperController.draftLayers[idx]
+                            updated.scaleEffect = newScale
+                            wallpaperController.updateLayer(updated)
+                        }
+                    }
+                )
+            }
+            .padding(32)
+            .overlay(alignment: .topLeading) {
+                if let layer = selectedLayer {
+                    HStack(spacing: 6) {
+                        Image(systemName: "hand.draw")
+                            .font(.caption2)
+                        Text("Selected '\(layer.name)' | Drag body to position, drag top-right blue dot up/down to scale")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(6)
+                    .padding(40)
+                }
+            }
+            // Live Telemetry Bar placed slightly above the center of the preview screen
+            .overlay(alignment: .center) {
+                HStack(spacing: 12) {
+                    HStack(spacing: 4) {
+                        Text("Horizontal:")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(String(format: "%+.1f px", offsetX))
+                            .font(.system(.caption, design: .monospaced).bold())
+                    }
+                    
+                    Text("|")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    
+                    HStack(spacing: 4) {
+                        Text("Vertical:")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(String(format: "%+.1f px", offsetY))
+                            .font(.system(.caption, design: .monospaced).bold())
+                    }
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
+                .background(.ultraThinMaterial)
+                .cornerRadius(6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                )
+                .offset(y: -80)
+            }
+            // Requirement 2: Apple-style "Save Collection" button at bottom-left of preview window
+            .overlay(alignment: .bottomLeading) {
+                Button {
+                    collectionNameInput = "My Scene \(collectionManager.collections.count + 1)"
+                    showingSaveModal = true
+                } label: {
+                    Label("Save Collection", systemImage: "bookmark.fill")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(40)
+            }
         }
     }
 }
