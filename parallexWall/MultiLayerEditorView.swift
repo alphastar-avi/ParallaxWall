@@ -800,11 +800,12 @@ struct MultiLayerEditorView: View {
                     .padding(.vertical, 5)
                     .background(.ultraThinMaterial)
                     .cornerRadius(6)
-                    .padding(40)
+                    .padding(20)
                 }
             }
-            // Requirement 2: Apple-style "Save Collection" button at bottom-left of preview window
-            .overlay(alignment: .bottomLeading) {
+            
+            // Save Collection Button (Positioned cleanly at bottom-left below the preview window)
+            HStack {
                 Button {
                     collectionNameInput = "My Scene \(collectionManager.collections.count + 1)"
                     showingSaveModal = true
@@ -827,12 +828,14 @@ struct MultiLayerEditorView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .padding(40)
+                
+                Spacer()
             }
+            .padding(.top, 4)
             
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 32)
-        .padding(.vertical, 24)
+        .padding(.vertical, 20)
     }
 }
