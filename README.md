@@ -10,18 +10,22 @@ https://github.com/user-attachments/assets/ec7228fd-3008-4200-bd6c-154a25245725
 
 ---
 
-## What's New in v3.0.0
+## What's New in v3.2.0
 
-* **Apple-Style Floating Bottom Navigation Bar**: Seamlessly switch between the **Parallax Editor** and **Browse Collections** gallery using a modern glassmorphic pill bar.
-* **Collections Gallery View**: Apple Photos / Launchpad style grid displaying all saved parallax collections with 3D thumbnail previews, layer counts, quick wallpaper activation, and editor loading.
-* **Save Scene Collection**: Click **Save Collection** on the preview canvas to save your draft scene to your private local collection storage (`~/Library/Application Support/ParallaxWallpaper/Collections/`).
-* **Privacy & Local Collection Storage**: Saved collections are kept 100% local on your Mac and automatically ignored from Git source control.
-* **Portable `.pxwall` Package Format**:
-  * **Export**: Export any collection to a portable `.pxwall` compressed bundle containing full-resolution lossless PNG/JPEG layer images and complete JSON metadata (depths, zoom crop scales, opacities, $X$/$Y$ offsets).
-  * **Import & Drag and Drop**: Import `.pxwall` files via button or drag and drop any `.pxwall` file directly onto the Browse Collections gallery page.
-* **Refined Sidebar Header Icon**: Sidebar icon updated to `square.3.layers.3d.down.right`.
-* **Background Layer Edge Protection**: Background Layer 0 uses `.aspectRatio(contentMode: .fill)` with minimum $1.15\times$ scale padding and strict offset bounds (`maxOffset = (scaleEffect - 1.0) * screen / 2`) so tilting never exposes black borders.
-* **Stable Directional Handle Scaling**: Top-right circular handle dot scales layer zoom smoothly without ghosting or moving layer position.
+* **Start at Login Support**: Automatic prompt on first launch and option to launch Parallax Wallpaper seamlessly when logging into macOS (`SMAppService`).
+* **Multi-Level Layer Undo Stack**: Undo button (`arrow.uturn.backward`) next to "Clear All" allowing you to easily roll back structural changes (adding, removing, reordering, and layer tuning edits).
+* **Smooth Resizable Settings Sidebar**: Interactive left/right drag handle with zero-jitter global coordinate tracking to expand or shrink the settings inspector sidebar.
+* **Battery-Efficient Static Gallery Previews**: Gallery collection cards render static composite previews containing all stacked PNG layers with zero motion-sensor CPU or battery overhead.
+* **Universal Layer Selection & Resizing**: Any selected layer (background, midground, or foreground) brings its outline and scale handle to the top of the Z-stack (`.zIndex(100)`), enabling direct canvas mouse drag position and scaling on any layer.
+* **Preview Canvas to Desktop Wallpaper Accuracy**:
+  * **Dynamic Aspect Ratio Matching**: Preview monitor frame (`DesktopMonitorFrame`) dynamically adopts your Mac display's native proportions (`NSScreen.main?.frame` aspect ratio e.g., 16:10 or 16:9).
+  * **Proportional Position & Offset Scaling**: Positional offsets, motion parallax targets, clamping bounds, and mouse drag translations scale proportionally by `scaleFactor = canvasWidth / refWidth`, guaranteeing 100% visual accuracy between editor preview and full-screen desktop wallpaper.
+* **Browse Gallery Enhancements**: Display file sizes in MB alongside creation timestamp (e.g. `Aug 10, 2026, 12:15 AM • 14.2 MB`) and enlarged action controls.
+* **Refined Menu Bar Extra**:
+  * Updated menu bar icon (`square.3.layers.3d.down.right`) matching the Parallax tab.
+  * **Real-Time State Sync**: Selecting a saved collection from the menu bar instantly applies the wallpaper AND updates the app window preview canvas in real time.
+  * Quick action controls (**"Update Current Angle"**, **"Open ParallaxWall"**, **"Pause/Activate Desktop Wallpaper"**).
+* **Polished Apple-Native Styling**: Red-accented "Clear All" and "Remove Layer" buttons, gold bookmark icon on "Save Collection", and centered live telemetry readout positioned right above the monitor frame.
 
 ---
 
