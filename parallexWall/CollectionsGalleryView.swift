@@ -144,7 +144,8 @@ struct CollectionsGalleryView: View {
                     }
                     
                     Text("\(collectionManager.collections.count) collections available")
-                        .font(.caption)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                         .foregroundStyle(.secondary)
                 }
                 
@@ -165,10 +166,13 @@ struct CollectionsGalleryView: View {
                     }
                 } label: {
                     Label("Import .pxwall Collection", systemImage: "square.and.arrow.down")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 20)

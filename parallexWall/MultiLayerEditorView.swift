@@ -445,8 +445,10 @@ struct MultiLayerEditorView: View {
                                             Label("Clear All", systemImage: "trash")
                                                 .font(.subheadline)
                                                 .fontWeight(.medium)
+                                                .foregroundStyle(.red)
                                         }
                                         .buttonStyle(.bordered)
+                                        .tint(.red)
                                         .controlSize(.regular)
                                     }
                                 }
@@ -727,7 +729,38 @@ struct MultiLayerEditorView: View {
     
     @ViewBuilder
     private var previewCanvasView: some View {
-        VStack {
+        VStack(spacing: 12) {
+            // Live Telemetry Bar placed ABOVE the preview window (outside the monitor frame)
+            HStack(spacing: 12) {
+                HStack(spacing: 4) {
+                    Text("Horizontal:")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(String(format: "%+.1f px", offsetX))
+                        .font(.system(.caption, design: .monospaced).bold())
+                }
+                
+                Text("|")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                
+                HStack(spacing: 4) {
+                    Text("Vertical:")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(String(format: "%+.1f px", offsetY))
+                        .font(.system(.caption, design: .monospaced).bold())
+                }
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .cornerRadius(6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+            )
+            
             DesktopMonitorFrame {
                 MultiLayerParallaxView(
                     layers: wallpaperController.draftLayers,
@@ -751,7 +784,8 @@ struct MultiLayerEditorView: View {
                     }
                 )
             }
-            .padding(32)
+            .padding(.horizontal, 32)
+            .padding(.bottom, 32)
             .overlay(alignment: .topLeading) {
                 if let layer = selectedLayer {
                     HStack(spacing: 6) {
@@ -768,56 +802,28 @@ struct MultiLayerEditorView: View {
                     .padding(40)
                 }
             }
-            // Live Telemetry Bar placed slightly above the center of the preview screen
-            .overlay(alignment: .center) {
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Text("Horizontal:")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(String(format: "%+.1f px", offsetX))
-                            .font(.system(.caption, design: .monospaced).bold())
-                    }
-                    
-                    Text("|")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    
-                    HStack(spacing: 4) {
-                        Text("Vertical:")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(String(format: "%+.1f px", offsetY))
-                            .font(.system(.caption, design: .monospaced).bold())
-                    }
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
-                .background(.ultraThinMaterial)
-                .cornerRadius(6)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
-                .offset(y: -80)
-            }
             // Requirement 2: Apple-style "Save Collection" button at bottom-left of preview window
             .overlay(alignment: .bottomLeading) {
                 Button {
                     collectionNameInput = "My Scene \(collectionManager.collections.count + 1)"
                     showingSaveModal = true
                 } label: {
-                    Label("Save Collection", systemImage: "bookmark.fill")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(.ultraThinMaterial)
-                        .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.white.opacity(0.25), lineWidth: 1)
-                        )
+                    HStack(spacing: 8) {
+                        Image(systemName: "bookmark.fill")
+                            .foregroundStyle(Color.yellow)
+                        Text("Save Collection")
+                            .foregroundStyle(.primary)
+                    }
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
                 .padding(40)
