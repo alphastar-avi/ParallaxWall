@@ -50,6 +50,43 @@ public struct ParallaxCollection: Identifiable, Equatable {
         layers.last?.image ?? layers.first?.image
     }
     
+    public var totalSizeBytes: Int64 {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let dir = appSupport.appendingPathComponent("ParallaxWallpaper/Collections/\(id.uuidString)", isDirectory: true)
+        let fm = FileManager.default
+        
+        if fm.fileExists(atPath: dir.path) {
+            if let enumerator = fm.enumerator(at: dir, includingPropertiesForKeys: [.fileSizeKey]) {
+                var total: Int64 = 0
+                for case let fileURL as URL in enumerator {
+                    if let resourceValues = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
+                       let size = resourceValues.fileSize {
+                        total += Int64(size)
+                    }
+                }
+                if total > 0 { return total }
+            }
+        }
+        
+        var estimated: Int64 = 0
+        for layer in layers {
+            if let tiff = layer.image?.tiffRepresentation {
+                estimated += Int64(tiff.count)
+            }
+        }
+        return estimated
+    }
+    
+    public var formattedSizeMB: String {
+        let bytes = Double(totalSizeBytes)
+        let mb = bytes / (1024.0 * 1024.0)
+        if mb < 0.1 {
+            let kb = bytes / 1024.0
+            return String(format: "%.1f KB", max(0.1, kb))
+        }
+        return String(format: "%.1f MB", mb)
+    }
+    
     public static func == (lhs: ParallaxCollection, rhs: ParallaxCollection) -> Bool {
         return lhs.id == rhs.id && lhs.title == rhs.title && lhs.layers == rhs.layers
     }

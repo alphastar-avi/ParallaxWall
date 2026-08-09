@@ -55,9 +55,14 @@ struct CollectionCardView: View {
                     .font(.headline)
                     .lineLimit(1)
                 
-                Text(collection.createdAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text(collection.createdAt.formatted(date: .abbreviated, time: .shortened))
+                    Text("•")
+                        .foregroundStyle(.tertiary)
+                    Text(collection.formattedSizeMB)
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             }
             
             // Action Buttons
