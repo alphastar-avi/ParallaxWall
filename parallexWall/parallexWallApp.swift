@@ -37,24 +37,16 @@ struct parallexWallApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(sensor: sensor, wallpaperController: wallpaperController)
         }
         
         MenuBarExtra("Parallax Wallpaper", systemImage: "square.3.layers.3d.down.right") {
-            // Status Info Header
-            Text(wallpaperController.isEnabled ? "Wallpaper: Active on Desktop" : "Wallpaper: Paused")
-                .font(.caption)
-                .foregroundStyle(wallpaperController.isEnabled ? .green : .secondary)
-            
             Button(wallpaperController.isEnabled ? "Pause Desktop Wallpaper" : "Activate Desktop Wallpaper") {
                 wallpaperController.toggle(sensor: sensor)
             }
             .disabled(wallpaperController.draftLayers.isEmpty && !wallpaperController.isEnabled)
             
-            Divider()
-            
-            // Motion Calibration
-            Button("Set Current Angle as Center Zero") {
+            Button("Update Current Angle") {
                 sensor.calibrate()
             }
             
@@ -64,10 +56,12 @@ struct parallexWallApp: App {
             if !collectionManager.collections.isEmpty {
                 Menu("Apply Saved Collection (\(collectionManager.collections.count))") {
                     ForEach(collectionManager.collections) { collection in
-                        Button(collection.title) {
+                        Button {
                             wallpaperController.draftLayers = collection.layers
                             wallpaperController.draftSensitivity = collection.sensitivity
                             wallpaperController.applyChangesToWallpaper(sensor: sensor)
+                        } label: {
+                            Text(collection.title)
                         }
                     }
                 }
@@ -75,19 +69,14 @@ struct parallexWallApp: App {
                 Divider()
             }
             
-            // Open Main Control Panel
-            Button("Open Parallax Control Panel") {
+            // Open Main App Window
+            Button("Open ParallaxWall") {
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 for window in NSApplication.shared.windows {
                     if window.title == "parallexWall" || window.title.isEmpty {
                         window.makeKeyAndOrderFront(nil)
                     }
                 }
-            }
-            
-            // Start at Login Option
-            Button(LaunchAtLoginHelper.isEnabled ? "✓ Launch at Login Enabled" : "Enable Launch at Login") {
-                LaunchAtLoginHelper.setEnabled(!LaunchAtLoginHelper.isEnabled)
             }
             
             Divider()

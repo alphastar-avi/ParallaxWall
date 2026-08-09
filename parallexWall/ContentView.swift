@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var sensor = SensorManager()
-    @StateObject private var wallpaperController = WallpaperController()
-    @StateObject private var collectionManager = CollectionManager.shared
+    @ObservedObject var sensor: SensorManager
+    @ObservedObject var wallpaperController: WallpaperController
+    @ObservedObject private var collectionManager = CollectionManager.shared
     
     @State private var selectedTab: AppTab = .parallax
     @State private var showStartAtLoginAlert = false
@@ -53,5 +53,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(sensor: SensorManager(), wallpaperController: WallpaperController())
 }
