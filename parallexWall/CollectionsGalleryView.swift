@@ -14,14 +14,16 @@ struct CollectionCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Thumbnail Container
             ZStack {
-                Color.black.opacity(0.2)
+                Color.black.opacity(0.3)
                 
-                if let thumb = collection.thumbnailImage {
-                    Image(nsImage: thumb)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(height: 150)
-                        .clipped()
+                if !collection.layers.isEmpty {
+                    MultiLayerParallaxView(
+                        layers: collection.layers,
+                        sensitivity: collection.sensitivity,
+                        isStatic: true
+                    )
+                    .frame(height: 150)
+                    .clipped()
                 } else {
                     Image(systemName: "square.3.layers.3d.down.right")
                         .font(.system(size: 40, weight: .thin))
@@ -45,6 +47,7 @@ struct CollectionCardView: View {
             }
             .frame(height: 150)
             .cornerRadius(10)
+            .clipped()
             
             // Collection Details
             VStack(alignment: .leading, spacing: 4) {
@@ -61,32 +64,40 @@ struct CollectionCardView: View {
             HStack(spacing: 8) {
                 Button(action: onApply) {
                     Label("Apply", systemImage: "play.fill")
-                        .font(.caption)
+                        .font(.subheadline)
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity)
+                        .padding(.vertical, 2)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)
+                .controlSize(.regular)
                 
                 Button(action: onLoad) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.caption)
+                    Label("Edit", systemImage: "square.and.pencil")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.regular)
                 .help("Load into Parallax Editor")
                 
                 Button(action: onExport) {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.caption)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.regular)
                 .help("Export Collection (.pxwall)")
                 
                 Button(role: .destructive, action: onDelete) {
                     Image(systemName: "trash")
-                        .font(.caption)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.regular)
                 .help("Delete Collection")
             }
         }
@@ -203,6 +214,7 @@ struct CollectionsGalleryView: View {
                                     wallpaperController.draftLayers = collection.layers
                                     wallpaperController.draftSensitivity = collection.sensitivity
                                     wallpaperController.applyChangesToWallpaper(sensor: sensor)
+                                    onSwitchToEditor()
                                 },
                                 onLoad: {
                                     wallpaperController.draftLayers = collection.layers
