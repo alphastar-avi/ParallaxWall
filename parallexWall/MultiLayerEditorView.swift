@@ -729,8 +729,8 @@ struct MultiLayerEditorView: View {
     
     @ViewBuilder
     private var previewCanvasView: some View {
-        VStack(spacing: 12) {
-            // Live Telemetry Bar placed ABOVE the preview window (outside the monitor frame)
+        VStack(spacing: 4) {
+            // Live Telemetry Bar placed slightly above the preview window (outside the monitor frame)
             HStack(spacing: 12) {
                 HStack(spacing: 4) {
                     Text("Horizontal:")
@@ -752,7 +752,7 @@ struct MultiLayerEditorView: View {
                         .font(.system(.caption, design: .monospaced).bold())
                 }
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, 5)
             .padding(.horizontal, 12)
             .background(Color(nsColor: .windowBackgroundColor))
             .cornerRadius(6)
@@ -760,6 +760,7 @@ struct MultiLayerEditorView: View {
                 RoundedRectangle(cornerRadius: 6)
                     .stroke(Color.primary.opacity(0.1), lineWidth: 1)
             )
+            .padding(.bottom, 2)
             
             DesktopMonitorFrame {
                 MultiLayerParallaxView(
