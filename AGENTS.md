@@ -6,6 +6,7 @@
 - **Target**: `parallexWall` (macOS Application)
 - **Deployment Target**: macOS 12.0+
 - **Architectures**: Apple Silicon (arm64) / Universal
+- **Project Format Upgrade**: Currently using Xcode 27.0 (.pbxproj). When updating to Xcode 27.2+, remind user to switch Project Format to JSON (.xcproj) via File Inspector.
 
 ## Architecture & Hardware Integrations
 - **Core Motion & Sensors**:
