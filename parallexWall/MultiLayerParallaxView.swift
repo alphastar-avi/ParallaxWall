@@ -71,6 +71,7 @@ struct MultiLayerParallaxView: View {
                                 .scaleEffect(effectiveScale)
                                 .opacity(layer.opacity)
                                 .offset(x: clampedX, y: clampedY)
+                                .compositingGroup()
                                 .zIndex(isSelected ? 100 : Double(index))
                                 .overlay(
                                     Group {

@@ -72,10 +72,10 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         }
     }
     
-    // Configurable idle noise deadzone (5.0 - 1000.0 units). Default: 150.0 units.
+    // Configurable idle noise deadzone (5.0 - 10000.0 units). Default: 250.0 units.
     @Published var idleDeadzone: Double = {
         let saved = UserDefaults.standard.double(forKey: "sensorIdleDeadzone")
-        return saved >= 5.0 && saved <= 1000.0 ? saved : 150.0
+        return saved >= 5.0 && saved <= 10000.0 ? saved : 250.0
     }() {
         didSet {
             UserDefaults.standard.set(idleDeadzone, forKey: "sensorIdleDeadzone")
@@ -102,7 +102,7 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     @Published var isAirPodsAvailable: Bool = false
     @Published var isAirPodsConnected: Bool = false
     
-    // Resting baseline & raw hardware cache
+    // Calibrated resting center baseline & raw hardware cache
     private var baselineX: Double = 0
     private var baselineY: Double = 0
     private var baselineZ: Double = 0
@@ -112,9 +112,6 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     private var latestRawY: Double = 0
     private var latestRawZ: Double = 0
     
-    private var settleCounter: Int = 0
-    private var lastSampleX: Double = 0
-    private var lastSampleY: Double = 0
     private var sampleTimer: Timer?
     
     private var hidDevice: IOHIDDevice?
@@ -149,7 +146,7 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     
     func resetPerformanceDefaults() {
         targetSamplingRate = 30.0
-        idleDeadzone = 150.0
+        idleDeadzone = 250.0
         userSmoothing = 0.5
     }
     
@@ -176,6 +173,7 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
             return
         }
         
+        // Initial calibration baseline setup
         if !hasBaseline {
             if latestRawX != 0 || latestRawY != 0 || latestRawZ != 0 {
                 baselineX = latestRawX
@@ -183,8 +181,6 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
                 baselineZ = latestRawZ
                 hasBaseline = true
                 rotation = (x: baselineX, y: baselineY, z: baselineZ)
-                lastSampleX = baselineX
-                lastSampleY = baselineY
                 if engineState != .resting {
                     engineState = .resting
                 }
@@ -196,21 +192,19 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         let rawDeltaY = latestRawY - baselineY
         let rawDist = sqrt(rawDeltaX * rawDeltaX + rawDeltaY * rawDeltaY)
         
-        // Desk Rest Deadzone: If total jitter/motion from baseline is within deadzone, hold completely still
+        // Desk Rest Deadzone: Jitter from calibrated baseline within deadzone holds completely still
         if rawDist <= idleDeadzone {
             if engineState == .resting {
-                settleCounter = 0
                 return // Zero CPU, zero publisher emissions when resting on desk!
             }
             
-            // If we were active, smooth back down to baseline
+            // If we were active, smoothly return to calibrated center zero
             let diffX = baselineX - rotation.x
             let diffY = baselineY - rotation.y
-            if abs(diffX) < 3.0 && abs(diffY) < 3.0 {
+            if abs(diffX) < 2.0 && abs(diffY) < 2.0 {
                 rotation = (x: baselineX, y: baselineY, z: baselineZ)
                 rotationPublisher.send(rotation)
                 engineState = .resting
-                settleCounter = 0
                 return
             }
             
@@ -238,27 +232,6 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         let newX = rotation.x + diffX * smoothing
         let newY = rotation.y + diffY * smoothing
         let newZ = latestRawZ
-        
-        // Settle check: If user holds device steady at new tilt angle for ~0.35s, lock new baseline
-        let stepVelocity = sqrt(pow(newX - lastSampleX, 2) + pow(newY - lastSampleY, 2))
-        lastSampleX = newX
-        lastSampleY = newY
-        
-        if stepVelocity < max(1.5, idleDeadzone * 0.05) {
-            settleCounter += 1
-            let settleFramesRequired = max(3, Int(targetSamplingRate * 0.35))
-            if settleCounter >= settleFramesRequired {
-                baselineX = newX
-                baselineY = newY
-                rotation = (x: newX, y: newY, z: newZ)
-                rotationPublisher.send(rotation)
-                engineState = .resting
-                settleCounter = 0
-                return
-            }
-        } else {
-            settleCounter = 0
-        }
         
         rotation = (x: newX, y: newY, z: newZ)
         rotationPublisher.send(rotation)

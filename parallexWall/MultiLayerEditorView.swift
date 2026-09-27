@@ -488,14 +488,14 @@ struct MultiLayerEditorView: View {
                                                 .fontWeight(.bold)
                                                 .foregroundStyle(.secondary)
                                         }
-                                        Slider(value: $sensor.idleDeadzone, in: 5.0...1000.0, step: 5.0) {
+                                        Slider(value: $sensor.idleDeadzone, in: 5.0...10000.0, step: 25.0) {
                                             Text("Deadzone")
                                         } minimumValueLabel: {
                                             Text("5").font(.caption2).foregroundStyle(.secondary)
                                         } maximumValueLabel: {
-                                            Text("1000").font(.caption2).foregroundStyle(.secondary)
+                                            Text("10k").font(.caption2).foregroundStyle(.secondary)
                                         }
-                                        Text("100–300 recommended to completely zero out desk typing & fan vibrations")
+                                        Text("Set higher (e.g. 500–2500) so resting on desk or lap completely zeros out all motion & GPU")
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
