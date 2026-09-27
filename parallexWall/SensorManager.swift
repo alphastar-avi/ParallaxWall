@@ -72,10 +72,10 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         }
     }
     
-    // Configurable idle noise deadzone (5.0 - 10000.0 units). Default: 250.0 units.
+    // Configurable idle noise deadzone (5.0 - 16000.0 units). Default: 250.0 units.
     @Published var idleDeadzone: Double = {
         let saved = UserDefaults.standard.double(forKey: "sensorIdleDeadzone")
-        return saved >= 5.0 && saved <= 10000.0 ? saved : 250.0
+        return saved >= 5.0 && saved <= 16000.0 ? saved : 250.0
     }() {
         didSet {
             UserDefaults.standard.set(idleDeadzone, forKey: "sensorIdleDeadzone")

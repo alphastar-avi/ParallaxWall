@@ -12,9 +12,12 @@ https://github.com/user-attachments/assets/ec42fb2a-ef2b-417d-a4cd-b392b914c4ed
 
 ## What's New in v3.3.0
 
+* **Interactive Calibration Recording Mode**:
+  * **Deadzone Calibration Wizard**: Click "Calibrate Deadzone" to enter live recording mode, tilt your Mac slightly to the minimum angle where you want parallax to activate (or leave it resting to profile typing vibrations), and click "Done" to automatically calibrate your deadzone!
+  * **Sensitivity & Smoothing Auto-Tune**: Click "Auto-Tune Sensitivity" and tilt your Mac to your comfortable maximum range—the engine measures your natural tilt angle and automatically calculates the optimal motion sensitivity ($0.1\times$ to $2.0\times$) and smoothing.
 * **Smart 0.0% CPU Resting Engine**:
   * **Intelligent Center Baseline Lock**: Motion coordinates automatically lock to calibrated center zero when resting on your desk or lap, completely pausing all CPU and GPU drawing for zero battery drain.
-  * **Expanded 10,000-Unit Deadzone**: Desk Rest Deadzone slider now scales from **5 to 10,000 units** (default `250.0`, step `25.0`) to completely filter out keyboard typing, trackpad clicks, and surface vibrations.
+  * **Expanded 16,000-Unit Deadzone**: Desk Rest Deadzone slider now scales up to **16,000 units** (default `250.0`, step `25.0`) to completely filter out keyboard typing, trackpad clicks, and surface vibrations.
   * **Continuous Deadband Tracking**: Replaced threshold step-snapping with continuous deadband calculation (`excess = distance - deadzone`). Slow tilts start smoothly from 0 delta with **zero stair-stepping jumps** and zero micro-lag.
 * **CoreAnimation GPU Spring Interpolation**:
   * Offsets animate using physical `.interactiveSpring` curves on the GPU dynamically adapted to your sampling interval.

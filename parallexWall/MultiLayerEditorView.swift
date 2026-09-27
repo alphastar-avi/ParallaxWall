@@ -228,6 +228,17 @@ struct MultiLayerEditorView: View {
     // Performance Engine Tuning Panel State
     @State private var showingPerformancePanel = false
     
+    // Interactive Calibration State
+    @State private var isRecordingDeadzone = false
+    @State private var recordedDeadzonePeak: Double = 0
+    @State private var liveDeadzoneCurrent: Double = 0
+    
+    @State private var isRecordingSensitivity = false
+    @State private var recordedTiltPeak: Double = 0
+    @State private var liveTiltCurrent: Double = 0
+    
+    @State private var calibrationStatusMessage: String? = nil
+    
     var selectedLayer: ParallaxLayer? {
         wallpaperController.draftLayers.first(where: { $0.id == selectedLayerId })
     }
@@ -411,16 +422,274 @@ struct MultiLayerEditorView: View {
                                 }
                             }
                             
-                            Button(action: {
-                                withAnimation {
-                                    sensor.calibrate()
+                            // MARK: - Smart Calibration Tools
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("Smart Calibration")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
                                 }
-                            }) {
-                                Label("Set Angle as Center Zero", systemImage: "scope")
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 4)
+                                
+                                // Quick Center Zero Button
+                                Button(action: {
+                                    withAnimation {
+                                        sensor.calibrate()
+                                        calibrationStatusMessage = "Angle calibrated as center zero!"
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                                            if calibrationStatusMessage == "Angle calibrated as center zero!" {
+                                                calibrationStatusMessage = nil
+                                            }
+                                        }
+                                    }
+                                }) {
+                                    Label("Set Angle as Center Zero", systemImage: "scope")
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 4)
+                                }
+                                .buttonStyle(.bordered)
+                                
+                                // Interactive Action Buttons: Deadzone Calibrate & Sensitivity Auto-Tune
+                                HStack(spacing: 8) {
+                                    // 1. Deadzone Calibrate Button
+                                    Button {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                            if isRecordingDeadzone {
+                                                finishDeadzoneCalibration()
+                                            } else {
+                                                isRecordingSensitivity = false
+                                                isRecordingDeadzone = true
+                                                recordedDeadzonePeak = 0
+                                                liveDeadzoneCurrent = 0
+                                                calibrationStatusMessage = nil
+                                            }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 5) {
+                                            Image(systemName: isRecordingDeadzone ? "stop.circle.fill" : "record.circle")
+                                                .foregroundStyle(isRecordingDeadzone ? .red : .blue)
+                                            Text(isRecordingDeadzone ? "Done (Save)" : "Calibrate Deadzone")
+                                                .fontWeight(.medium)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 4)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(isRecordingDeadzone ? .red : .primary)
+                                    
+                                    // 2. Sensitivity & Smoothing Auto-Tune Button
+                                    Button {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                            if isRecordingSensitivity {
+                                                finishSensitivityCalibration()
+                                            } else {
+                                                isRecordingDeadzone = false
+                                                isRecordingSensitivity = true
+                                                recordedTiltPeak = 0
+                                                liveTiltCurrent = 0
+                                                calibrationStatusMessage = nil
+                                            }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 5) {
+                                            Image(systemName: isRecordingSensitivity ? "stop.circle.fill" : "wand.and.stars")
+                                                .foregroundStyle(isRecordingSensitivity ? .orange : .purple)
+                                            Text(isRecordingSensitivity ? "Done (Apply)" : "Auto-Tune Sensitivity")
+                                                .fontWeight(.medium)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 4)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(isRecordingSensitivity ? .orange : .primary)
+                                }
+                                
+                                // Status / Feedback Message
+                                if let msg = calibrationStatusMessage {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.green)
+                                            .font(.caption2)
+                                        Text(msg)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.vertical, 2)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                }
+                                
+                                // Live Deadzone Recording Panel
+                                if isRecordingDeadzone {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            HStack(spacing: 6) {
+                                                Circle()
+                                                    .fill(Color.red)
+                                                    .frame(width: 7, height: 7)
+                                                Text("RECORDING MINIMUM THRESHOLD")
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .foregroundStyle(.red)
+                                            }
+                                            Spacer()
+                                            Button("Cancel") {
+                                                withAnimation { isRecordingDeadzone = false }
+                                            }
+                                            .font(.caption2)
+                                            .buttonStyle(.plain)
+                                            .foregroundStyle(.secondary)
+                                        }
+                                        
+                                        Text("Tilt your Mac slightly to the minimum angle where parallax should activate, or leave it resting on your desk to filter typing vibrations.")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        
+                                        // Live Metrics
+                                        HStack(spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Current Tilt")
+                                                    .font(.system(size: 9))
+                                                    .foregroundStyle(.secondary)
+                                                Text(String(format: "%.0f", liveDeadzoneCurrent))
+                                                    .font(.system(.subheadline, design: .monospaced).bold())
+                                            }
+                                            
+                                            Divider().frame(height: 24)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Peak Detected")
+                                                    .font(.system(size: 9))
+                                                    .foregroundStyle(.secondary)
+                                                Text(String(format: "%.0f", recordedDeadzonePeak))
+                                                    .font(.system(.subheadline, design: .monospaced).bold())
+                                                    .foregroundStyle(.blue)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Button("Set to Peak") {
+                                                withAnimation { finishDeadzoneCalibration() }
+                                            }
+                                            .buttonStyle(.borderedProminent)
+                                            .controlSize(.small)
+                                        }
+                                        
+                                        // Progress Bar
+                                        GeometryReader { barGeo in
+                                            let pct = min(1.0, max(0.0, recordedDeadzonePeak / 16000.0))
+                                            ZStack(alignment: .leading) {
+                                                Capsule()
+                                                    .fill(Color.secondary.opacity(0.2))
+                                                    .frame(height: 6)
+                                                Capsule()
+                                                    .fill(Color.blue)
+                                                    .frame(width: max(6, barGeo.size.width * pct), height: 6)
+                                            }
+                                        }
+                                        .frame(height: 6)
+                                    }
+                                    .padding(10)
+                                    .background(Color(nsColor: .windowBackgroundColor))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                    )
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                }
+                                
+                                // Live Sensitivity Auto-Tune Panel
+                                if isRecordingSensitivity {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            HStack(spacing: 6) {
+                                                Circle()
+                                                    .fill(Color.orange)
+                                                    .frame(width: 7, height: 7)
+                                                Text("MEASURING NATURAL TILT RANGE")
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .foregroundStyle(.orange)
+                                            }
+                                            Spacer()
+                                            Button("Cancel") {
+                                                withAnimation { isRecordingSensitivity = false }
+                                            }
+                                            .font(.caption2)
+                                            .buttonStyle(.plain)
+                                            .foregroundStyle(.secondary)
+                                        }
+                                        
+                                        Text("Tilt your Mac comfortably in all directions (left, right, back, forward) to your natural maximum angle.")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        
+                                        let recommendedSens = calculateRecommendedSensitivity(peakTilt: recordedTiltPeak)
+                                        
+                                        // Live Metrics
+                                        HStack(spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Current Angle")
+                                                    .font(.system(size: 9))
+                                                    .foregroundStyle(.secondary)
+                                                Text(String(format: "%.0f", liveTiltCurrent))
+                                                    .font(.system(.subheadline, design: .monospaced).bold())
+                                            }
+                                            
+                                            Divider().frame(height: 24)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Max Range")
+                                                    .font(.system(size: 9))
+                                                    .foregroundStyle(.secondary)
+                                                Text(String(format: "%.0f", recordedTiltPeak))
+                                                    .font(.system(.subheadline, design: .monospaced).bold())
+                                            }
+                                            
+                                            Divider().frame(height: 24)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Recommended")
+                                                    .font(.system(size: 9))
+                                                    .foregroundStyle(.secondary)
+                                                Text(String(format: "%.2fx", recommendedSens))
+                                                    .font(.system(.subheadline, design: .monospaced).bold())
+                                                    .foregroundStyle(.purple)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Button("Apply") {
+                                                withAnimation { finishSensitivityCalibration() }
+                                            }
+                                            .buttonStyle(.borderedProminent)
+                                            .controlSize(.small)
+                                            .tint(.purple)
+                                        }
+                                        
+                                        // Progress Bar
+                                        GeometryReader { barGeo in
+                                            let pct = min(1.0, max(0.0, recordedTiltPeak / 16000.0))
+                                            ZStack(alignment: .leading) {
+                                                Capsule()
+                                                    .fill(Color.secondary.opacity(0.2))
+                                                    .frame(height: 6)
+                                                Capsule()
+                                                    .fill(Color.purple)
+                                                    .frame(width: max(6, barGeo.size.width * pct), height: 6)
+                                            }
+                                        }
+                                        .frame(height: 6)
+                                    }
+                                    .padding(10)
+                                    .background(Color(nsColor: .windowBackgroundColor))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                                    )
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                }
                             }
-                            .buttonStyle(.bordered)
                             
                             // MARK: - Smart Performance & Tuning (Dev / Debug Mode)
                             DisclosureGroup(isExpanded: $showingPerformancePanel) {
@@ -488,12 +757,12 @@ struct MultiLayerEditorView: View {
                                                 .fontWeight(.bold)
                                                 .foregroundStyle(.secondary)
                                         }
-                                        Slider(value: $sensor.idleDeadzone, in: 5.0...10000.0, step: 25.0) {
+                                        Slider(value: $sensor.idleDeadzone, in: 5.0...16000.0, step: 25.0) {
                                             Text("Deadzone")
                                         } minimumValueLabel: {
                                             Text("5").font(.caption2).foregroundStyle(.secondary)
                                         } maximumValueLabel: {
-                                            Text("10k").font(.caption2).foregroundStyle(.secondary)
+                                            Text("16k").font(.caption2).foregroundStyle(.secondary)
                                         }
                                         Text("Set higher (e.g. 500–2500) so resting on desk or lap completely zeros out all motion & GPU")
                                             .font(.caption2)
@@ -875,6 +1144,63 @@ struct MultiLayerEditorView: View {
             }
             .padding(24)
             .frame(width: 380)
+        }
+        .onReceive(sensor.rotationPublisher) { rot in
+            if isRecordingDeadzone {
+                let deltaX = abs(rot.x - sensor.baseRotation.x)
+                let deltaY = abs(rot.y - sensor.baseRotation.y)
+                let currentDist = sqrt(deltaX * deltaX + deltaY * deltaY)
+                liveDeadzoneCurrent = currentDist
+                if currentDist > recordedDeadzonePeak {
+                    recordedDeadzonePeak = currentDist
+                }
+            } else if isRecordingSensitivity {
+                let deltaX = abs(rot.x - sensor.baseRotation.x)
+                let deltaY = abs(rot.y - sensor.baseRotation.y)
+                let currentDist = sqrt(deltaX * deltaX + deltaY * deltaY)
+                liveTiltCurrent = currentDist
+                if currentDist > recordedTiltPeak {
+                    recordedTiltPeak = currentDist
+                }
+            }
+        }
+    }
+    
+    // MARK: - Smart Calibration Logic
+    
+    private func finishDeadzoneCalibration() {
+        isRecordingDeadzone = false
+        let targetDeadzone: Double
+        if recordedDeadzonePeak < 25 {
+            targetDeadzone = 50.0
+        } else {
+            targetDeadzone = min(16000.0, max(25.0, (recordedDeadzonePeak * 1.1).rounded()))
+        }
+        sensor.idleDeadzone = targetDeadzone
+        calibrationStatusMessage = "Deadzone calibrated to \(Int(targetDeadzone)) units!"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            if calibrationStatusMessage?.starts(with: "Deadzone") == true {
+                calibrationStatusMessage = nil
+            }
+        }
+    }
+    
+    private func calculateRecommendedSensitivity(peakTilt: Double) -> Double {
+        guard peakTilt > 100 else { return 0.50 }
+        let raw = 35000.0 / peakTilt
+        return max(0.10, min(2.0, (raw * 100).rounded() / 100))
+    }
+    
+    private func finishSensitivityCalibration() {
+        isRecordingSensitivity = false
+        let recommended = calculateRecommendedSensitivity(peakTilt: recordedTiltPeak)
+        wallpaperController.draftSensitivity = recommended
+        sensor.userSmoothing = 0.50
+        calibrationStatusMessage = "Sensitivity tuned to \(String(format: "%.2fx", recommended))!"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            if calibrationStatusMessage?.starts(with: "Sensitivity") == true {
+                calibrationStatusMessage = nil
+            }
         }
     }
     
