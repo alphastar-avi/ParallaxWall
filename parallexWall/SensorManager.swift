@@ -56,10 +56,10 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         }
     }
     
-    // Configurable sampling rate in Hz (20 Hz - 60 Hz). Default: 35 Hz.
+    // Configurable sampling rate in Hz (5 Hz - 100 Hz). Default: 30 Hz.
     @Published var targetSamplingRate: Double = {
         let saved = UserDefaults.standard.double(forKey: "sensorSamplingRate")
-        return saved >= 20.0 && saved <= 60.0 ? saved : 35.0
+        return saved >= 5.0 && saved <= 100.0 ? saved : 30.0
     }() {
         didSet {
             UserDefaults.standard.set(targetSamplingRate, forKey: "sensorSamplingRate")
@@ -67,10 +67,10 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         }
     }
     
-    // Configurable idle noise deadzone (0.5 - 5.0). Default: 2.5 units.
+    // Configurable idle noise deadzone (1.0 - 100.0 units). Default: 25.0 units.
     @Published var idleDeadzone: Double = {
         let saved = UserDefaults.standard.double(forKey: "sensorIdleDeadzone")
-        return saved >= 0.5 && saved <= 5.0 ? saved : 2.5
+        return saved >= 1.0 && saved <= 100.0 ? saved : 25.0
     }() {
         didSet {
             UserDefaults.standard.set(idleDeadzone, forKey: "sensorIdleDeadzone")
@@ -127,8 +127,8 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     }
     
     func resetPerformanceDefaults() {
-        targetSamplingRate = 35.0
-        idleDeadzone = 2.5
+        targetSamplingRate = 30.0
+        idleDeadzone = 25.0
     }
     
     // MARK: - Smart Rate-Limited Motion Sampling Engine
@@ -142,7 +142,7 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
             return
         }
         
-        let interval = 1.0 / max(10.0, min(60.0, targetSamplingRate))
+        let interval = 1.0 / max(5.0, min(100.0, targetSamplingRate))
         sampleTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.tickSampling()
         }
@@ -166,7 +166,7 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         let diffZ = rawTargetZ - rotation.z
         
         // Desk rest snapping: snap to target and DO NOT publish updates when settled!
-        let restSnapThreshold = 0.35
+        let restSnapThreshold = max(2.0, idleDeadzone * 0.25)
         if abs(diffX) < restSnapThreshold && abs(diffY) < restSnapThreshold && abs(diffZ) < restSnapThreshold {
             if rotation.x != rawTargetX || rotation.y != rawTargetY || rotation.z != rawTargetZ {
                 rotation = (x: rawTargetX, y: rawTargetY, z: rawTargetZ)

@@ -426,14 +426,14 @@ struct MultiLayerEditorView: View {
                                                 .fontWeight(.bold)
                                                 .foregroundStyle(.secondary)
                                         }
-                                        Slider(value: $sensor.targetSamplingRate, in: 20.0...60.0, step: 1.0) {
+                                        Slider(value: $sensor.targetSamplingRate, in: 5.0...100.0, step: 1.0) {
                                             Text("Sampling Rate")
                                         } minimumValueLabel: {
-                                            Text("20Hz").font(.caption2).foregroundStyle(.secondary)
+                                            Text("5Hz").font(.caption2).foregroundStyle(.secondary)
                                         } maximumValueLabel: {
-                                            Text("60Hz").font(.caption2).foregroundStyle(.secondary)
+                                            Text("100Hz").font(.caption2).foregroundStyle(.secondary)
                                         }
-                                        Text("30Hz–40Hz recommended for ultra-efficient battery savings")
+                                        Text("GPU spring curve keeps motion buttery-smooth even at 15Hz–30Hz")
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
@@ -445,20 +445,20 @@ struct MultiLayerEditorView: View {
                                                 .font(.subheadline)
                                                 .fontWeight(.medium)
                                             Spacer()
-                                            Text(String(format: "%.1f", sensor.idleDeadzone))
+                                            Text(String(format: "%.0f", sensor.idleDeadzone))
                                                 .font(.caption)
                                                 .monospacedDigit()
                                                 .fontWeight(.bold)
                                                 .foregroundStyle(.secondary)
                                         }
-                                        Slider(value: $sensor.idleDeadzone, in: 0.5...5.0, step: 0.1) {
+                                        Slider(value: $sensor.idleDeadzone, in: 1.0...100.0, step: 1.0) {
                                             Text("Deadzone")
                                         } minimumValueLabel: {
-                                            Text("Sensitive").font(.caption2).foregroundStyle(.secondary)
+                                            Text("1").font(.caption2).foregroundStyle(.secondary)
                                         } maximumValueLabel: {
-                                            Text("Firm").font(.caption2).foregroundStyle(.secondary)
+                                            Text("100").font(.caption2).foregroundStyle(.secondary)
                                         }
-                                        Text("Filters out keyboard typing and desk fan vibrations")
+                                        Text("20–50 recommended to completely zero out desk typing & fan vibrations")
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }

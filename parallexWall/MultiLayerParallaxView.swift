@@ -142,7 +142,14 @@ struct MultiLayerParallaxView: View {
             let targetX = -currentX * baseScale * sensitivity
             let targetY = currentY * baseScale * sensitivity
             
-            rawOffset = CGSize(width: targetX, height: targetY)
+            let newWidth = targetX.rounded()
+            let newHeight = targetY.rounded()
+            
+            if abs(newWidth - rawOffset.width) >= 0.5 || abs(newHeight - rawOffset.height) >= 0.5 {
+                withAnimation(.interactiveSpring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.15)) {
+                    rawOffset = CGSize(width: newWidth, height: newHeight)
+                }
+            }
         }
     }
 }
