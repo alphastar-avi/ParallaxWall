@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/ec42fb2a-ef2b-417d-a4cd-b392b914c4ed
 
 ---
 
-## What's New in v3.3.0
+## What's New in v3.3.1
 
 * **Interactive Calibration Recording Mode**:
   * **Deadzone Calibration Wizard**: Click "Calibrate Deadzone" to enter live recording mode, tilt your Mac slightly to the minimum angle where you want parallax to activate (or leave it resting to profile typing vibrations), and click "Done" to automatically calibrate your deadzone!
