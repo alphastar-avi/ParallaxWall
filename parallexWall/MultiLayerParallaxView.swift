@@ -133,7 +133,7 @@ struct MultiLayerParallaxView: View {
             .frame(width: geo.size.width, height: geo.size.height)
             .clipped()
         }
-        .onReceive(sensor.$rotation) { rotation in
+        .onReceive(sensor.rotationPublisher) { rotation in
             guard !isStatic else { return }
             let currentX = rotation.x - sensor.baseRotation.x
             let currentY = rotation.y - sensor.baseRotation.y
@@ -146,7 +146,9 @@ struct MultiLayerParallaxView: View {
             let newHeight = targetY.rounded()
             
             if abs(newWidth - rawOffset.width) >= 0.5 || abs(newHeight - rawOffset.height) >= 0.5 {
-                withAnimation(.interactiveSpring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.15)) {
+                let interval = 1.0 / max(5.0, min(100.0, sensor.targetSamplingRate))
+                let springResponse = max(0.32, interval * 1.6)
+                withAnimation(.interactiveSpring(response: springResponse, dampingFraction: 0.85, blendDuration: 0.15)) {
                     rawOffset = CGSize(width: newWidth, height: newHeight)
                 }
             }

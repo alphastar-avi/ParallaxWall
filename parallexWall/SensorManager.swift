@@ -37,7 +37,12 @@ public enum MotionEngineState: String, CaseIterable {
 }
 
 class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegate {
-    @Published var rotation = (x: Double(0), y: Double(0), z: Double(0))
+    // Internal and direct read for rotation coordinates
+    public private(set) var rotation = (x: Double(0), y: Double(0), z: Double(0))
+    
+    // High-frequency stream for parallax rendering without triggering full-view SwiftUI re-evaluations
+    public let rotationPublisher = PassthroughSubject<(x: Double, y: Double, z: Double), Never>()
+    
     @Published var baseRotation = (x: Double(0), y: Double(0), z: Double(0))
     
     // Configurable Low-pass filter smoothing factor (0.01 = Ultra Smooth, 0.25 = Raw/Direct)
@@ -67,10 +72,10 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         }
     }
     
-    // Configurable idle noise deadzone (1.0 - 100.0 units). Default: 25.0 units.
+    // Configurable idle noise deadzone (5.0 - 1000.0 units). Default: 150.0 units.
     @Published var idleDeadzone: Double = {
         let saved = UserDefaults.standard.double(forKey: "sensorIdleDeadzone")
-        return saved >= 1.0 && saved <= 100.0 ? saved : 25.0
+        return saved >= 5.0 && saved <= 1000.0 ? saved : 150.0
     }() {
         didSet {
             UserDefaults.standard.set(idleDeadzone, forKey: "sensorIdleDeadzone")
@@ -97,9 +102,19 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     @Published var isAirPodsAvailable: Bool = false
     @Published var isAirPodsConnected: Bool = false
     
-    private var rawTargetX: Double = 0
-    private var rawTargetY: Double = 0
-    private var rawTargetZ: Double = 0
+    // Resting baseline & raw hardware cache
+    private var baselineX: Double = 0
+    private var baselineY: Double = 0
+    private var baselineZ: Double = 0
+    private var hasBaseline: Bool = false
+    
+    private var latestRawX: Double = 0
+    private var latestRawY: Double = 0
+    private var latestRawZ: Double = 0
+    
+    private var settleCounter: Int = 0
+    private var lastSampleX: Double = 0
+    private var lastSampleY: Double = 0
     private var sampleTimer: Timer?
     
     private var hidDevice: IOHIDDevice?
@@ -124,11 +139,18 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     
     func calibrate() {
         self.baseRotation = self.rotation
+        self.baselineX = self.latestRawX
+        self.baselineY = self.latestRawY
+        self.baselineZ = self.latestRawZ
+        self.hasBaseline = true
+        self.engineState = .resting
+        self.rotationPublisher.send(self.rotation)
     }
     
     func resetPerformanceDefaults() {
         targetSamplingRate = 30.0
-        idleDeadzone = 25.0
+        idleDeadzone = 150.0
+        userSmoothing = 0.5
     }
     
     // MARK: - Smart Rate-Limited Motion Sampling Engine
@@ -154,37 +176,92 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
             return
         }
         
-        if rotation.x == 0 && rotation.y == 0 && rotation.z == 0 {
-            if rawTargetX != 0 || rawTargetY != 0 || rawTargetZ != 0 {
-                rotation = (x: rawTargetX, y: rawTargetY, z: rawTargetZ)
+        if !hasBaseline {
+            if latestRawX != 0 || latestRawY != 0 || latestRawZ != 0 {
+                baselineX = latestRawX
+                baselineY = latestRawY
+                baselineZ = latestRawZ
+                hasBaseline = true
+                rotation = (x: baselineX, y: baselineY, z: baselineZ)
+                lastSampleX = baselineX
+                lastSampleY = baselineY
+                if engineState != .resting {
+                    engineState = .resting
+                }
             }
             return
         }
         
-        let diffX = rawTargetX - rotation.x
-        let diffY = rawTargetY - rotation.y
-        let diffZ = rawTargetZ - rotation.z
+        let rawDeltaX = latestRawX - baselineX
+        let rawDeltaY = latestRawY - baselineY
+        let rawDist = sqrt(rawDeltaX * rawDeltaX + rawDeltaY * rawDeltaY)
         
-        // Desk rest snapping: snap to target and DO NOT publish updates when settled!
-        let restSnapThreshold = max(2.0, idleDeadzone * 0.25)
-        if abs(diffX) < restSnapThreshold && abs(diffY) < restSnapThreshold && abs(diffZ) < restSnapThreshold {
-            if rotation.x != rawTargetX || rotation.y != rawTargetY || rotation.z != rawTargetZ {
-                rotation = (x: rawTargetX, y: rawTargetY, z: rawTargetZ)
+        // Desk Rest Deadzone: If total jitter/motion from baseline is within deadzone, hold completely still
+        if rawDist <= idleDeadzone {
+            if engineState == .resting {
+                settleCounter = 0
+                return // Zero CPU, zero publisher emissions when resting on desk!
             }
-            if engineState != .resting {
+            
+            // If we were active, smooth back down to baseline
+            let diffX = baselineX - rotation.x
+            let diffY = baselineY - rotation.y
+            if abs(diffX) < 3.0 && abs(diffY) < 3.0 {
+                rotation = (x: baselineX, y: baselineY, z: baselineZ)
+                rotationPublisher.send(rotation)
                 engineState = .resting
+                settleCounter = 0
+                return
             }
+            
+            let newX = rotation.x + diffX * smoothing
+            let newY = rotation.y + diffY * smoothing
+            rotation = (x: newX, y: newY, z: baselineZ)
+            rotationPublisher.send(rotation)
             return
         }
         
-        let newX = rotation.x + diffX * smoothing
-        let newY = rotation.y + diffY * smoothing
-        let newZ = rotation.z + diffZ * smoothing
-        
+        // Active Motion: Movement exceeds desk deadzone!
         if engineState != .active {
             engineState = .active
         }
+        
+        // Continuous Deadband tracking: Start smoothly from 0 offset past deadzone to eliminate stair-step jumps
+        let excess = rawDist - idleDeadzone
+        let dirX = rawDeltaX / rawDist
+        let dirY = rawDeltaY / rawDist
+        let targetX = baselineX + dirX * excess
+        let targetY = baselineY + dirY * excess
+        
+        let diffX = targetX - rotation.x
+        let diffY = targetY - rotation.y
+        let newX = rotation.x + diffX * smoothing
+        let newY = rotation.y + diffY * smoothing
+        let newZ = latestRawZ
+        
+        // Settle check: If user holds device steady at new tilt angle for ~0.35s, lock new baseline
+        let stepVelocity = sqrt(pow(newX - lastSampleX, 2) + pow(newY - lastSampleY, 2))
+        lastSampleX = newX
+        lastSampleY = newY
+        
+        if stepVelocity < max(1.5, idleDeadzone * 0.05) {
+            settleCounter += 1
+            let settleFramesRequired = max(3, Int(targetSamplingRate * 0.35))
+            if settleCounter >= settleFramesRequired {
+                baselineX = newX
+                baselineY = newY
+                rotation = (x: newX, y: newY, z: newZ)
+                rotationPublisher.send(rotation)
+                engineState = .resting
+                settleCounter = 0
+                return
+            }
+        } else {
+            settleCounter = 0
+        }
+        
         rotation = (x: newX, y: newY, z: newZ)
+        rotationPublisher.send(rotation)
     }
     
     // MARK: - Mac Hardware SPU Sensor Setup
@@ -298,15 +375,9 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
             let y = Double(readInt32(report: report, offset: offset + 4))
             let z = Double(readInt32(report: report, offset: offset + 8))
             
-            if rawTargetX == 0 && rawTargetY == 0 && rawTargetZ == 0 {
-                rawTargetX = x
-                rawTargetY = y
-                rawTargetZ = z
-            } else if abs(x - rawTargetX) > idleDeadzone || abs(y - rawTargetY) > idleDeadzone || abs(z - rawTargetZ) > idleDeadzone {
-                rawTargetX = x
-                rawTargetY = y
-                rawTargetZ = z
-            }
+            latestRawX = x
+            latestRawY = y
+            latestRawZ = z
         }
     }
     
@@ -358,19 +429,9 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     private func handleAirPodsMotion(_ motion: CMDeviceMotion) {
         guard !isOccluded else { return }
         let scaleFactor: Double = 30000.0
-        let x = motion.attitude.roll * scaleFactor
-        let y = motion.attitude.pitch * scaleFactor
-        let z = motion.attitude.yaw * scaleFactor
-        
-        if rawTargetX == 0 && rawTargetY == 0 && rawTargetZ == 0 {
-            rawTargetX = x
-            rawTargetY = y
-            rawTargetZ = z
-        } else if abs(x - rawTargetX) > idleDeadzone || abs(y - rawTargetY) > idleDeadzone || abs(z - rawTargetZ) > idleDeadzone {
-            rawTargetX = x
-            rawTargetY = y
-            rawTargetZ = z
-        }
+        latestRawX = motion.attitude.roll * scaleFactor
+        latestRawY = motion.attitude.pitch * scaleFactor
+        latestRawZ = motion.attitude.yaw * scaleFactor
     }
     
     // MARK: - CMHeadphoneMotionManagerDelegate

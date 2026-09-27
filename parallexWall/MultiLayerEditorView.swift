@@ -26,6 +26,58 @@ struct TelemetryBox: View {
     }
 }
 
+struct LiveTelemetryBarView: View {
+    @ObservedObject var sensor: SensorManager
+    let sensitivity: Double
+    @State private var offsetX: Double = 0
+    @State private var offsetY: Double = 0
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 4) {
+                Text("Horizontal:")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(String(format: "%+.0f px", offsetX))
+                    .font(.system(.caption, design: .monospaced).bold())
+            }
+            
+            Text("|")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            
+            HStack(spacing: 4) {
+                Text("Vertical:")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(String(format: "%+.0f px", offsetY))
+                    .font(.system(.caption, design: .monospaced).bold())
+            }
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 12)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .cornerRadius(6)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .onReceive(sensor.rotationPublisher) { rot in
+            let curX = rot.x - sensor.baseRotation.x
+            let curY = rot.y - sensor.baseRotation.y
+            let rawX = -curX * 0.005 * sensitivity
+            let rawY = curY * 0.005 * sensitivity
+            let roundedX = rawX.rounded()
+            let roundedY = rawY.rounded()
+            if roundedX != offsetX || roundedY != offsetY {
+                offsetX = roundedX
+                offsetY = roundedY
+            }
+        }
+    }
+}
+
 struct LayerDropDelegate: DropDelegate {
     let item: ParallaxLayer
     @Binding var layers: [ParallaxLayer]
@@ -180,21 +232,6 @@ struct MultiLayerEditorView: View {
         wallpaperController.draftLayers.first(where: { $0.id == selectedLayerId })
     }
     
-    // Live Telemetry Calculations
-    var currentTiltX: Double {
-        sensor.rotation.x - sensor.baseRotation.x
-    }
-    var currentTiltY: Double {
-        sensor.rotation.y - sensor.baseRotation.y
-    }
-    var offsetX: Double {
-        let raw = -currentTiltX * 0.005 * wallpaperController.draftSensitivity
-        return raw.rounded()
-    }
-    var offsetY: Double {
-        let raw = currentTiltY * 0.005 * wallpaperController.draftSensitivity
-        return raw.rounded()
-    }
     
     var body: some View {
         HStack(spacing: 0) {
@@ -345,7 +382,7 @@ struct MultiLayerEditorView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 
-                                Slider(value: $wallpaperController.draftSensitivity, in: 0.01...1.0) {
+                                Slider(value: $wallpaperController.draftSensitivity, in: 0.01...2.0) {
                                     Text("Sensitivity")
                                 } minimumValueLabel: {
                                     Image(systemName: "tortoise").foregroundStyle(.secondary)
@@ -451,14 +488,14 @@ struct MultiLayerEditorView: View {
                                                 .fontWeight(.bold)
                                                 .foregroundStyle(.secondary)
                                         }
-                                        Slider(value: $sensor.idleDeadzone, in: 1.0...100.0, step: 1.0) {
+                                        Slider(value: $sensor.idleDeadzone, in: 5.0...1000.0, step: 5.0) {
                                             Text("Deadzone")
                                         } minimumValueLabel: {
-                                            Text("1").font(.caption2).foregroundStyle(.secondary)
+                                            Text("5").font(.caption2).foregroundStyle(.secondary)
                                         } maximumValueLabel: {
-                                            Text("100").font(.caption2).foregroundStyle(.secondary)
+                                            Text("1000").font(.caption2).foregroundStyle(.secondary)
                                         }
-                                        Text("20–50 recommended to completely zero out desk typing & fan vibrations")
+                                        Text("100–300 recommended to completely zero out desk typing & fan vibrations")
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
@@ -846,37 +883,8 @@ struct MultiLayerEditorView: View {
         VStack(spacing: 8) {
             Spacer(minLength: 0)
             
-            // Live Telemetry Bar placed directly above DesktopMonitorFrame (outside the top bezel)
-            HStack(spacing: 12) {
-                HStack(spacing: 4) {
-                    Text("Horizontal:")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text(String(format: "%+.0f px", offsetX))
-                        .font(.system(.caption, design: .monospaced).bold())
-                }
-                
-                Text("|")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                
-                HStack(spacing: 4) {
-                    Text("Vertical:")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text(String(format: "%+.0f px", offsetY))
-                        .font(.system(.caption, design: .monospaced).bold())
-                }
-            }
-            .padding(.vertical, 5)
-            .padding(.horizontal, 12)
-            .background(Color(nsColor: .windowBackgroundColor))
-            .cornerRadius(6)
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            // Isolated Live Telemetry Bar: Never invalidates parent MultiLayerEditorView body!
+            LiveTelemetryBarView(sensor: sensor, sensitivity: wallpaperController.draftSensitivity)
             
             DesktopMonitorFrame {
                 MultiLayerParallaxView(
