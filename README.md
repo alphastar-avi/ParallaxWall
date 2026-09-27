@@ -10,7 +10,32 @@ https://github.com/user-attachments/assets/ec42fb2a-ef2b-417d-a4cd-b392b914c4ed
 
 ---
 
-## What's New in v3.2.0
+## What's New in v3.3.0
+
+* **Smart 0.0% CPU Resting Engine**:
+  * **Intelligent Center Baseline Lock**: Motion coordinates automatically lock to calibrated center zero when resting on your desk or lap, completely pausing all CPU and GPU drawing for zero battery drain.
+  * **Expanded 10,000-Unit Deadzone**: Desk Rest Deadzone slider now scales from **5 to 10,000 units** (default `250.0`, step `25.0`) to completely filter out keyboard typing, trackpad clicks, and surface vibrations.
+  * **Continuous Deadband Tracking**: Replaced threshold step-snapping with continuous deadband calculation (`excess = distance - deadzone`). Slow tilts start smoothly from 0 delta with **zero stair-stepping jumps** and zero micro-lag.
+* **CoreAnimation GPU Spring Interpolation**:
+  * Offsets animate using physical `.interactiveSpring` curves on the GPU dynamically adapted to your sampling interval.
+  * At 15 Hz – 30 Hz, the wallpaper seamlessly glides across sampling gaps without choppiness or delay.
+* **GPU Hardware Compositing Optimization**:
+  * Attached `.compositingGroup()` backing surfaces to all parallax layers, leveraging CoreAnimation GPU matrix translations (`CATransform3D`) on the hardware blitter rather than view re-draws.
+  * Dynamic selection handle detachment so the applied desktop wallpaper runs with zero overlay overhead.
+* **Configurable Sampling Rate (5 Hz – 100 Hz)**:
+  * Full developer/user control to dial in sensor frequency according to your preference.
+* **Expanded Motion Sensitivity Range (Up to 2.0x)**:
+  * Sensitivity slider expanded from `0.01x` to `2.0x` (default `0.50x`), providing responsive parallax travel at lower sampling rates.
+* **Stage Manager & Full-Screen Occlusion Awareness**:
+  * Automatically monitors window occlusion via `NSWindow.didChangeOcclusionStateNotification`. When a full-screen app is running or windows completely cover the wallpaper, motion updates pause to conserve 100% of resources.
+* **Isolated Live Telemetry Architecture**:
+  * Broadcasts high-frequency coordinates through a dedicated Combine `rotationPublisher` stream, isolating the live analytical readouts and dropping active editor CPU consumption to single digits.
+* **Engine & Performance Tuning Panel**:
+  * Collapsible settings inspector with real-time status badges (`Resting (0% CPU)`, `Tracking`, `Covered (Paused)`), live Hz readouts, and one-click "Reset to Recommended Defaults".
+
+---
+
+## Highlights from v3.2.0
 
 * **Start at Login Support**: Automatic prompt on first launch and option to launch Parallax Wallpaper seamlessly when logging into macOS (`SMAppService`).
 * **Multi-Level Layer Undo Stack**: Undo button (`arrow.uturn.backward`) next to "Clear All" allowing you to easily roll back structural changes (adding, removing, reordering, and layer tuning edits).
