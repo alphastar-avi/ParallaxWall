@@ -173,6 +173,9 @@ struct MultiLayerEditorView: View {
     @State private var dragStartSidebarWidth: CGFloat? = nil
     @State private var dragStartGlobalX: CGFloat? = nil
     
+    // Performance Engine Tuning Panel State
+    @State private var showingPerformancePanel = false
+    
     var selectedLayer: ParallaxLayer? {
         wallpaperController.draftLayers.first(where: { $0.id == selectedLayerId })
     }
@@ -185,10 +188,12 @@ struct MultiLayerEditorView: View {
         sensor.rotation.y - sensor.baseRotation.y
     }
     var offsetX: Double {
-        -currentTiltX * 0.005 * wallpaperController.draftSensitivity
+        let raw = -currentTiltX * 0.005 * wallpaperController.draftSensitivity
+        return raw.rounded()
     }
     var offsetY: Double {
-        currentTiltY * 0.005 * wallpaperController.draftSensitivity
+        let raw = currentTiltY * 0.005 * wallpaperController.draftSensitivity
+        return raw.rounded()
     }
     
     var body: some View {
@@ -379,6 +384,113 @@ struct MultiLayerEditorView: View {
                                     .padding(.vertical, 4)
                             }
                             .buttonStyle(.bordered)
+                            
+                            // MARK: - Smart Performance & Tuning (Dev / Debug Mode)
+                            DisclosureGroup(isExpanded: $showingPerformancePanel) {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    // Live Engine Status
+                                    HStack {
+                                        Text("Engine Status")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        Spacer()
+                                        HStack(spacing: 5) {
+                                            Circle()
+                                                .fill(sensor.engineState == .active ? Color.green : (sensor.engineState == .resting ? Color.blue : Color.orange))
+                                                .frame(width: 7, height: 7)
+                                            Text(sensor.engineState.badgeTitle)
+                                                .font(.caption2)
+                                                .fontWeight(.bold)
+                                                .foregroundStyle(sensor.engineState == .active ? .green : (sensor.engineState == .resting ? .blue : .orange))
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(
+                                            Capsule()
+                                                .fill(
+                                                    (sensor.engineState == .active ? Color.green : (sensor.engineState == .resting ? Color.blue : Color.orange)).opacity(0.12)
+                                                )
+                                        )
+                                    }
+                                    
+                                    // Sampling Rate Slider
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack {
+                                            Text("Sampling Rate")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            Spacer()
+                                            Text("\(Int(sensor.targetSamplingRate)) Hz")
+                                                .font(.caption)
+                                                .monospacedDigit()
+                                                .fontWeight(.bold)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Slider(value: $sensor.targetSamplingRate, in: 20.0...60.0, step: 1.0) {
+                                            Text("Sampling Rate")
+                                        } minimumValueLabel: {
+                                            Text("20Hz").font(.caption2).foregroundStyle(.secondary)
+                                        } maximumValueLabel: {
+                                            Text("60Hz").font(.caption2).foregroundStyle(.secondary)
+                                        }
+                                        Text("30Hz–40Hz recommended for ultra-efficient battery savings")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    // Idle Noise Deadzone Slider
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack {
+                                            Text("Desk Rest Deadzone")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            Spacer()
+                                            Text(String(format: "%.1f", sensor.idleDeadzone))
+                                                .font(.caption)
+                                                .monospacedDigit()
+                                                .fontWeight(.bold)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Slider(value: $sensor.idleDeadzone, in: 0.5...5.0, step: 0.1) {
+                                            Text("Deadzone")
+                                        } minimumValueLabel: {
+                                            Text("Sensitive").font(.caption2).foregroundStyle(.secondary)
+                                        } maximumValueLabel: {
+                                            Text("Firm").font(.caption2).foregroundStyle(.secondary)
+                                        }
+                                        Text("Filters out keyboard typing and desk fan vibrations")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    // Reset to Recommended Defaults
+                                    Button {
+                                        withAnimation {
+                                            sensor.resetPerformanceDefaults()
+                                        }
+                                    } label: {
+                                        Label("Reset to Recommended", systemImage: "arrow.counterclockwise")
+                                            .font(.caption)
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
+                                .padding(.top, 8)
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Label("Engine & Performance", systemImage: "gauge.with.dots.needle.bottom.50percent")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                    Text("\(Int(sensor.targetSamplingRate))Hz • \(sensor.engineState == .resting ? "0% CPU" : sensor.engineState.rawValue)")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(10)
+                            .background(Color(nsColor: .windowBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         
                         Divider()
@@ -740,7 +852,7 @@ struct MultiLayerEditorView: View {
                     Text("Horizontal:")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text(String(format: "%+.1f px", offsetX))
+                    Text(String(format: "%+.0f px", offsetX))
                         .font(.system(.caption, design: .monospaced).bold())
                 }
                 
@@ -752,7 +864,7 @@ struct MultiLayerEditorView: View {
                     Text("Vertical:")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text(String(format: "%+.1f px", offsetY))
+                    Text(String(format: "%+.0f px", offsetY))
                         .font(.system(.caption, design: .monospaced).bold())
                 }
             }

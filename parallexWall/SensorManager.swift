@@ -22,6 +22,20 @@ public enum MotionSource: String, CaseIterable, Identifiable {
     }
 }
 
+public enum MotionEngineState: String, CaseIterable {
+    case active = "Active"
+    case resting = "Resting"
+    case occluded = "Paused (Occluded)"
+    
+    public var badgeTitle: String {
+        switch self {
+        case .active: return "Tracking"
+        case .resting: return "Resting (0% CPU)"
+        case .occluded: return "Covered (Paused)"
+        }
+    }
+}
+
 class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegate {
     @Published var rotation = (x: Double(0), y: Double(0), z: Double(0))
     @Published var baseRotation = (x: Double(0), y: Double(0), z: Double(0))
@@ -42,6 +56,37 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         }
     }
     
+    // Configurable sampling rate in Hz (20 Hz - 60 Hz). Default: 35 Hz.
+    @Published var targetSamplingRate: Double = {
+        let saved = UserDefaults.standard.double(forKey: "sensorSamplingRate")
+        return saved >= 20.0 && saved <= 60.0 ? saved : 35.0
+    }() {
+        didSet {
+            UserDefaults.standard.set(targetSamplingRate, forKey: "sensorSamplingRate")
+            updateSamplingTimer()
+        }
+    }
+    
+    // Configurable idle noise deadzone (0.5 - 5.0). Default: 2.5 units.
+    @Published var idleDeadzone: Double = {
+        let saved = UserDefaults.standard.double(forKey: "sensorIdleDeadzone")
+        return saved >= 0.5 && saved <= 5.0 ? saved : 2.5
+    }() {
+        didSet {
+            UserDefaults.standard.set(idleDeadzone, forKey: "sensorIdleDeadzone")
+        }
+    }
+    
+    // Full-screen app / Stage manager occlusion state
+    @Published var isOccluded: Bool = false {
+        didSet {
+            updateSamplingTimer()
+        }
+    }
+    
+    // Current runtime engine state for Dev / Tuning UI
+    @Published var engineState: MotionEngineState = .resting
+    
     // Motion Source selection (Mac Hardware vs. AirPods Spatial Motion)
     @Published var motionSource: MotionSource = .mac {
         didSet {
@@ -52,6 +97,11 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     @Published var isAirPodsAvailable: Bool = false
     @Published var isAirPodsConnected: Bool = false
     
+    private var rawTargetX: Double = 0
+    private var rawTargetY: Double = 0
+    private var rawTargetZ: Double = 0
+    private var sampleTimer: Timer?
+    
     private var hidDevice: IOHIDDevice?
     private var reportBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 64)
     private let headphoneManager = CMHeadphoneMotionManager()
@@ -60,9 +110,11 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
         super.init()
         setupSensor()
         setupAirPodsMotion()
+        updateSamplingTimer()
     }
     
     deinit {
+        sampleTimer?.invalidate()
         if let device = hidDevice {
             IOHIDDeviceClose(device, 0)
         }
@@ -72,6 +124,67 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     
     func calibrate() {
         self.baseRotation = self.rotation
+    }
+    
+    func resetPerformanceDefaults() {
+        targetSamplingRate = 35.0
+        idleDeadzone = 2.5
+    }
+    
+    // MARK: - Smart Rate-Limited Motion Sampling Engine
+    
+    private func updateSamplingTimer() {
+        sampleTimer?.invalidate()
+        sampleTimer = nil
+        
+        if isOccluded {
+            engineState = .occluded
+            return
+        }
+        
+        let interval = 1.0 / max(10.0, min(60.0, targetSamplingRate))
+        sampleTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            self?.tickSampling()
+        }
+    }
+    
+    private func tickSampling() {
+        guard !isOccluded else {
+            if engineState != .occluded { engineState = .occluded }
+            return
+        }
+        
+        if rotation.x == 0 && rotation.y == 0 && rotation.z == 0 {
+            if rawTargetX != 0 || rawTargetY != 0 || rawTargetZ != 0 {
+                rotation = (x: rawTargetX, y: rawTargetY, z: rawTargetZ)
+            }
+            return
+        }
+        
+        let diffX = rawTargetX - rotation.x
+        let diffY = rawTargetY - rotation.y
+        let diffZ = rawTargetZ - rotation.z
+        
+        // Desk rest snapping: snap to target and DO NOT publish updates when settled!
+        let restSnapThreshold = 0.35
+        if abs(diffX) < restSnapThreshold && abs(diffY) < restSnapThreshold && abs(diffZ) < restSnapThreshold {
+            if rotation.x != rawTargetX || rotation.y != rawTargetY || rotation.z != rawTargetZ {
+                rotation = (x: rawTargetX, y: rawTargetY, z: rawTargetZ)
+            }
+            if engineState != .resting {
+                engineState = .resting
+            }
+            return
+        }
+        
+        let newX = rotation.x + diffX * smoothing
+        let newY = rotation.y + diffY * smoothing
+        let newZ = rotation.z + diffZ * smoothing
+        
+        if engineState != .active {
+            engineState = .active
+        }
+        rotation = (x: newX, y: newY, z: newZ)
     }
     
     // MARK: - Mac Hardware SPU Sensor Setup
@@ -177,27 +290,22 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     }
     
     private func handleReport(report: UnsafeMutablePointer<UInt8>, length: Int) {
-        guard motionSource == .mac else { return }
+        guard motionSource == .mac, !isOccluded else { return }
         
         if length >= 18 {
             let offset = 6
-            let x = readInt32(report: report, offset: offset)
-            let y = readInt32(report: report, offset: offset + 4)
-            let z = readInt32(report: report, offset: offset + 8)
+            let x = Double(readInt32(report: report, offset: offset))
+            let y = Double(readInt32(report: report, offset: offset + 4))
+            let z = Double(readInt32(report: report, offset: offset + 8))
             
-            DispatchQueue.main.async {
-                let targetX = Double(x)
-                let targetY = Double(y)
-                let targetZ = Double(z)
-                
-                if self.rotation.x == 0 && self.rotation.y == 0 && self.rotation.z == 0 {
-                    self.rotation = (x: targetX, y: targetY, z: targetZ)
-                } else {
-                    let newX = self.rotation.x + (targetX - self.rotation.x) * self.smoothing
-                    let newY = self.rotation.y + (targetY - self.rotation.y) * self.smoothing
-                    let newZ = self.rotation.z + (targetZ - self.rotation.z) * self.smoothing
-                    self.rotation = (x: newX, y: newY, z: newZ)
-                }
+            if rawTargetX == 0 && rawTargetY == 0 && rawTargetZ == 0 {
+                rawTargetX = x
+                rawTargetY = y
+                rawTargetZ = z
+            } else if abs(x - rawTargetX) > idleDeadzone || abs(y - rawTargetY) > idleDeadzone || abs(z - rawTargetZ) > idleDeadzone {
+                rawTargetX = x
+                rawTargetY = y
+                rawTargetZ = z
             }
         }
     }
@@ -248,21 +356,20 @@ class SensorManager: NSObject, ObservableObject, CMHeadphoneMotionManagerDelegat
     }
     
     private func handleAirPodsMotion(_ motion: CMDeviceMotion) {
-        // Attitude radians (-pi to +pi). Scale factor maps radians to ~30,000 unit range for smooth parallax
+        guard !isOccluded else { return }
         let scaleFactor: Double = 30000.0
-        let targetX = motion.attitude.roll * scaleFactor
-        let targetY = motion.attitude.pitch * scaleFactor
-        let targetZ = motion.attitude.yaw * scaleFactor
+        let x = motion.attitude.roll * scaleFactor
+        let y = motion.attitude.pitch * scaleFactor
+        let z = motion.attitude.yaw * scaleFactor
         
-        DispatchQueue.main.async {
-            if self.rotation.x == 0 && self.rotation.y == 0 && self.rotation.z == 0 {
-                self.rotation = (x: targetX, y: targetY, z: targetZ)
-            } else {
-                let newX = self.rotation.x + (targetX - self.rotation.x) * self.smoothing
-                let newY = self.rotation.y + (targetY - self.rotation.y) * self.smoothing
-                let newZ = self.rotation.z + (targetZ - self.rotation.z) * self.smoothing
-                self.rotation = (x: newX, y: newY, z: newZ)
-            }
+        if rawTargetX == 0 && rawTargetY == 0 && rawTargetZ == 0 {
+            rawTargetX = x
+            rawTargetY = y
+            rawTargetZ = z
+        } else if abs(x - rawTargetX) > idleDeadzone || abs(y - rawTargetY) > idleDeadzone || abs(z - rawTargetZ) > idleDeadzone {
+            rawTargetX = x
+            rawTargetY = y
+            rawTargetZ = z
         }
     }
     

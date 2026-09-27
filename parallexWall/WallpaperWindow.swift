@@ -142,9 +142,13 @@ class WallpaperController: ObservableObject {
     
     func toggle(sensor: SensorManager) {
         if isEnabled {
+            if let win = window {
+                NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: win)
+            }
             window?.close()
             window = nil
             isEnabled = false
+            sensor.isOccluded = false
         } else {
             // Apply current draft state when enabling
             appliedLayers = draftLayers
@@ -164,5 +168,15 @@ class WallpaperController: ObservableObject {
     private func attachHostingView(to win: WallpaperWindow, sensor: SensorManager) {
         let view = MultiLayerParallaxView(layers: appliedLayers, sensor: sensor, sensitivity: appliedSensitivity)
         win.contentView = NSHostingView(rootView: view)
+        
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: win)
+        NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: win, queue: .main) { [weak win, weak sensor] _ in
+            guard let win = win, let sensor = sensor else { return }
+            let isVisible = win.occlusionState.contains(.visible)
+            sensor.isOccluded = !isVisible
+        }
+        
+        let isVisible = win.occlusionState.contains(.visible)
+        sensor.isOccluded = !isVisible
     }
 }
