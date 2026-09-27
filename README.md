@@ -1,6 +1,6 @@
 # Parallax Wallpaper
 
-Parallax Wallpaper brings your macOS desktop to life using built-in Apple Silicon accelerometer tracking and AirPods spatial head motion detection. As you move your laptop or tilt your head, your desktop background smoothly reacts and pans in real time, creating an immersive sense of 3D depth behind your icons and windows. Compose rich, multi-layered 3D depth scenes with custom per-layer motion tuning, save custom scene collections locally, and export/import them via portable `.pxwall` packages.
+Parallax Wallpaper brings your macOS desktop to life using built-in Apple Silicon accelerometer tracking and AirPods spatial head motion detection. As you move your laptop or tilt your head, your desktop background smoothly reacts and pans in real time, creating an immersive 3D depth experience.
 
 <img width="1279" height="934" alt="ParallaxHome" src="https://github.com/user-attachments/assets/c624649b-2f5a-4c01-9e34-49eede2d8aeb" />
 
@@ -10,85 +10,45 @@ https://github.com/user-attachments/assets/ec42fb2a-ef2b-417d-a4cd-b392b914c4ed
 
 ---
 
-## What's New in v3.3.1
-
-* **Interactive Calibration Recording Mode**:
-  * **Deadzone Calibration Wizard**: Click "Calibrate Deadzone" to enter live recording mode, tilt your Mac slightly to the minimum angle where you want parallax to activate (or leave it resting to profile typing vibrations), and click "Done" to automatically calibrate your deadzone!
-  * **Sensitivity & Smoothing Auto-Tune**: Click "Auto-Tune Sensitivity" and tilt your Mac to your comfortable maximum range—the engine measures your natural tilt angle and automatically calculates the optimal motion sensitivity ($0.1\times$ to $2.0\times$) and smoothing.
-* **Smart 0.0% CPU Resting Engine**:
-  * **Intelligent Center Baseline Lock**: Motion coordinates automatically lock to calibrated center zero when resting on your desk or lap, completely pausing all CPU and GPU drawing for zero battery drain.
-  * **Expanded 16,000-Unit Deadzone**: Desk Rest Deadzone slider now scales up to **16,000 units** (default `250.0`, step `25.0`) to completely filter out keyboard typing, trackpad clicks, and surface vibrations.
-  * **Continuous Deadband Tracking**: Replaced threshold step-snapping with continuous deadband calculation (`excess = distance - deadzone`). Slow tilts start smoothly from 0 delta with **zero stair-stepping jumps** and zero micro-lag.
-* **CoreAnimation GPU Spring Interpolation**:
-  * Offsets animate using physical `.interactiveSpring` curves on the GPU dynamically adapted to your sampling interval.
-  * At 15 Hz – 30 Hz, the wallpaper seamlessly glides across sampling gaps without choppiness or delay.
-* **GPU Hardware Compositing Optimization**:
-  * Attached `.compositingGroup()` backing surfaces to all parallax layers, leveraging CoreAnimation GPU matrix translations (`CATransform3D`) on the hardware blitter rather than view re-draws.
-  * Dynamic selection handle detachment so the applied desktop wallpaper runs with zero overlay overhead.
-* **Configurable Sampling Rate (5 Hz – 100 Hz)**:
-  * Full developer/user control to dial in sensor frequency according to your preference.
-* **Expanded Motion Sensitivity Range (Up to 2.0x)**:
-  * Sensitivity slider expanded from `0.01x` to `2.0x` (default `0.50x`), providing responsive parallax travel at lower sampling rates.
-* **Stage Manager & Full-Screen Occlusion Awareness**:
-  * Automatically monitors window occlusion via `NSWindow.didChangeOcclusionStateNotification`. When a full-screen app is running or windows completely cover the wallpaper, motion updates pause to conserve 100% of resources.
-* **Isolated Live Telemetry Architecture**:
-  * Broadcasts high-frequency coordinates through a dedicated Combine `rotationPublisher` stream, isolating the live analytical readouts and dropping active editor CPU consumption to single digits.
-* **Engine & Performance Tuning Panel**:
-  * Collapsible settings inspector with real-time status badges (`Resting (0% CPU)`, `Tracking`, `Covered (Paused)`), live Hz readouts, and one-click "Reset to Recommended Defaults".
-
----
-
-## Highlights from v3.2.0
-
-* **Start at Login Support**: Automatic prompt on first launch and option to launch Parallax Wallpaper seamlessly when logging into macOS (`SMAppService`).
-* **Multi-Level Layer Undo Stack**: Undo button (`arrow.uturn.backward`) next to "Clear All" allowing you to easily roll back structural changes (adding, removing, reordering, and layer tuning edits).
-* **Smooth Resizable Settings Sidebar**: Interactive left/right drag handle with zero-jitter global coordinate tracking to expand or shrink the settings inspector sidebar.
-* **Battery-Efficient Static Gallery Previews**: Gallery collection cards render static composite previews containing all stacked PNG layers with zero motion-sensor CPU or battery overhead.
-* **Universal Layer Selection & Resizing**: Any selected layer (background, midground, or foreground) brings its outline and scale handle to the top of the Z-stack (`.zIndex(100)`), enabling direct canvas mouse drag position and scaling on any layer.
-* **Preview Canvas to Desktop Wallpaper Accuracy**:
-  * **Dynamic Aspect Ratio Matching**: Preview monitor frame (`DesktopMonitorFrame`) dynamically adopts your Mac display's native proportions (`NSScreen.main?.frame` aspect ratio e.g., 16:10 or 16:9).
-  * **Proportional Position & Offset Scaling**: Positional offsets, motion parallax targets, clamping bounds, and mouse drag translations scale proportionally by `scaleFactor = canvasWidth / refWidth`, guaranteeing 100% visual accuracy between editor preview and full-screen desktop wallpaper.
-* **Browse Gallery Enhancements**: Display file sizes in MB alongside creation timestamp (e.g. `Aug 10, 2026, 12:15 AM • 14.2 MB`) and enlarged action controls.
-* **Refined Menu Bar Extra**:
-  * Updated menu bar icon (`square.3.layers.3d.down.right`) matching the Parallax tab.
-  * **Real-Time State Sync**: Selecting a saved collection from the menu bar instantly applies the wallpaper AND updates the app window preview canvas in real time.
-  * Quick action controls (**"Update Current Angle"**, **"Open ParallaxWall"**, **"Pause/Activate Desktop Wallpaper"**).
-* **Polished Apple-Native Styling**: Red-accented "Clear All" and "Remove Layer" buttons, gold bookmark icon on "Save Collection", and centered live telemetry readout positioned right above the monitor frame.
-
----
-
 ## Features
 
-* **Dual Motion Tracking Sources**: Switch seamlessly between **Mac Accelerometer** (`IOKit` `AppleSPUHIDDevice`) and **AirPods Spatial Head Tracking** (`CoreMotion` `CMHeadphoneMotionManager`).
-* **Multi-Layer 3D Parallax Engine**: Upload $N$ image layers (PNGs/JPEGs) where the first uploaded image forms the background and the last forms the foreground.
-* **Interactive Canvas Mouse Controls**:
-  * Drag any selected layer's body directly inside the preview canvas to position it on screen.
-  * Drag the **top-right blue circular handle dot** up or down to visually scale layer zoom ($0.15\times$ to $3.0\times$).
-* **Menu Bar Quick Actions**: Toggle **Pause Wallpaper** / **Resume Wallpaper** instantly from the macOS status bar icon menu.
-* **Live Telemetry Bar**: Real-time analytical readouts tracking horizontal and vertical pixel offsets.
-* **Draggable Layer Reordering**: Drag-and-drop or reorder layers in the sidebar stack.
-* **Inverted Motion Smoothing Control**: Intuitive slider control ($0.0$ Raw/Direct to $1.0$ Ultra Smooth).
-* **Live Draft Preview vs. Applied Wallpaper**: Tweak layer settings with instant live preview in the window, then click **"Apply Changes to Wallpaper"** to project onto your desktop.
-* **Aspect-Fitted Monitor Preview**: Custom $16:10$ Mac screen monitor preview frame.
-* **Center Calibration**: One-click calibration to snap the 3D focal point to your current physical desk angle or head position.
+* **Dual Motion Tracking**: Seamlessly switch between **Mac Accelerometer** (`IOKit` / `AppleSPUHIDDevice`) and **AirPods Spatial Head Tracking** (`CoreMotion` / `CMHeadphoneMotionManager`).
+* **Multi-Layer 3D Depth Engine**: Stack multiple PNG/JPEG layers with independent depth offsets, scaling, and real-time interactive canvas mouse positioning.
+* **Smart Zero-Overhead Engine**:
+  * **0.0% CPU at Rest**: Automatically locks to center baseline when stationary, pausing sensor calculation and graphics rendering.
+  * **Continuous Deadband**: Adjustable threshold (up to 16,000 units) to completely filter out typing vibrations and desk drift without sudden jumps.
+  * **Occlusion Awareness**: Automatically pauses when full-screen apps or overlaying windows cover the desktop.
+* **Interactive Calibration Wizards**: One-click recording modes to auto-profile your desk deadzone and calibrate comfortable tilt sensitivity ($0.1\times$ – $2.0\times$).
+* **Menu Bar & System Integration**: Fast preset switching, quick pause/resume controls, and optional start-at-login support.
+* **Scene Management**: Save collections locally, preview them statically in the gallery, and export/import portable `.pxwall` scene packages.
 
 ---
 
-## Installation & macOS Security Note
+## Installation
 
-When downloading compiled `.dmg` builds from GitHub Releases, macOS Gatekeeper may display a warning such as *"Parallax Wallpaper is damaged and can’t be opened"* or *"Unidentified Developer"*.
-
-### Reason
-Parallax Wallpaper intentionally bypasses the macOS App Sandbox to read raw, unclipped hardware motion data directly from the internal Mac SPU accelerometer (`AppleSPUHIDDevice` via `IOKit`) and AirPods spatial motion sensors (`CMHeadphoneMotionManager`). Because the application is distributed as a free open-source release outside the Mac App Store, macOS automatically attaches a `com.apple.quarantine` extended attribute to the downloaded app bundle.
-
-### Quick Fix Command
-After dragging `parallexWall.app` into your `/Applications` folder, open **Terminal** and run the following command to strip the quarantine attribute:
+### Option 1: Install via Homebrew (Recommended)
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
+brew install alphastar-avi/tap/parallexwall
 ```
 
-Once executed, launch `parallexWall.app` normally from Launchpad or Finder.
+To update in the future:
+```bash
+brew upgrade parallexwall
+```
+
+---
+
+### Option 2: Manual Download & macOS Security Note
+
+1. Download `ParallaxWallpaper.dmg` from the [Latest Release](https://github.com/alphastar-avi/ParallaxWall/releases/latest).
+2. Open the DMG and drag `parallexWall.app` into `/Applications`.
+
+> [!NOTE]
+> Because Parallax Wallpaper runs outside the Mac App Store to read raw hardware sensor telemetry, macOS Gatekeeper may show a warning on first launch. If prompted, run this command in **Terminal**:
+> ```bash
+> xattr -dr com.apple.quarantine "/Applications/parallexWall.app"
+> ```
 
 ---
 
@@ -96,5 +56,26 @@ Once executed, launch `parallexWall.app` normally from Launchpad or Finder.
 
 * macOS 12.0 (Monterey) or later
 * Motion Tracking Requirements:
-  * **Mac Accelerometer**: MacBook Air (M1, M2, M3, M4) or MacBook Pro (M1, M2, M3, M4) with internal SPU sensors.
-  * **AirPods Head Tracking**: AirPods Pro, AirPods Max, or AirPods (3rd gen+) with head motion tracking support.
+  * **Mac Accelerometer**: MacBook Air / MacBook Pro (Apple Silicon M1 and later) with internal SPU sensors.
+  * **AirPods Head Tracking**: AirPods Pro, AirPods Max, or AirPods (3rd gen+) with spatial audio head tracking.
+
+---
+
+## Architecture & Sensor Telemetry
+
+```
+[ Internal Apple SPU ]
+       │ (IOKit / AppleSPUHIDDevice)
+       ▼
+[ Motion Manager ] ──► [ Continuous Deadband & Calibrated Baseline ]
+       │                                     │
+       ▼                                     ▼
+[ Combine rotationPublisher ] ──► [ CoreAnimation GPU Compositor (CATransform3D) ]
+                                             │
+                                             ▼
+                                  [ Wallpaper NSWindow ]
+```
+
+* **Hardware Sensor Telemetry**: Parallax Wallpaper communicates directly with the internal Apple Silicon Sensor Processing Unit (SPU) via `IOKit` matching `AppleSPUHIDDevice`. It reads raw 3-axis accelerometer vector samples (`x`, `y`, `z`) without running high-overhead user-space frameworks.
+* **Continuous Deadband Filtering**: Raw physical acceleration is centered against a calibrated baseline and processed through a continuous deadband algorithm (`excess = distance - deadzone`). Typing vibrations, trackpad clicks, and minor desk bumps below the threshold produce zero delta, keeping CPU at 0.0%.
+* **GPU Hardware Compositing**: Parallax layer transformations are calculated as 3D matrices (`CATransform3D`) and composited directly on the GPU using CoreAnimation backing layers (`.compositingGroup()`). Only transformation matrices are modified during movement, avoiding expensive view re-renders and preserving battery life.
